@@ -32,7 +32,9 @@ impl RAIIThreadJoiner {
 
 impl Drop for RAIIThreadJoiner {
     fn drop(&mut self) {
-        eval_result!(eval_option!(self.joiner.take(), "Programming Error - Please report this as a Bug.").join());
+        let joiner = eval_option!(self.joiner.take(),
+                                  "Programming Error - Please report this as a Bug.");
+        eval_result!(joiner.join());
     }
 }
 
