@@ -8,3 +8,6 @@ repository = "https://github.com/maidsafe/maidsafe_utilities"
 readme = "README.md"
 license = "GPL-3.0"
 homepage = "http://maidsafe.net"
+
+[dev-dependencies]
+time = "*"
