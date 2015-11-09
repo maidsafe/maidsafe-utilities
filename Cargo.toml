@@ -1,0 +1,10 @@
+[package]
+name = "maidsafe_utilities"
+version = "0.1.0"
+authors = ["MaidSafe Developers <dev@maidsafe.net>"]
+description = "Rust utility functions provided by MaidSafe."
+documentation = "http://maidsafe.net/maidsafe_utilities/latest"
+repository = "https://github.com/maidsafe/maidsafe_utilities"
+readme = "README.md"
+license = "GPL-3.0"
+homepage = "http://maidsafe.net"

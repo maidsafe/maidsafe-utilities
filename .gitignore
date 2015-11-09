@@ -1,0 +1,14 @@
+*.exe
+*.lock
+*.swp
+*.rsproj
+tags*
+build/
+build-tests/
+target/
+/.idea
+/.project
+*.sublime-*
+/bin/
+.cargo/
+.DS_Store
