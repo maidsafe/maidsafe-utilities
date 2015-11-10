@@ -32,9 +32,9 @@ impl RaiiThreadJoiner {
 
 impl Drop for RaiiThreadJoiner {
     fn drop(&mut self) {
-        let joiner = evaluate_option!(self.joiner.take(),
-                                      "Programming Error - please report this as a bug.");
-        evaluate_result!(joiner.join());
+        let joiner = unwrap_option!(self.joiner.take(),
+                                    "Programming error: please report this as a bug.");
+        unwrap_result!(joiner.join());
     }
 }
 
@@ -61,9 +61,8 @@ impl Drop for RaiiThreadJoiner {
 #[macro_export]
 macro_rules! thread {
     ($thread_name:expr, $entry_point:expr) => {
-        evaluate_result!(::std::thread::Builder::new()
-                                                .name($thread_name.to_string())
-                                                .spawn($entry_point))
+        unwrap_result!(::std::thread::Builder::new().name($thread_name.to_string())
+                                                    .spawn($entry_point))
     }
 }
 
