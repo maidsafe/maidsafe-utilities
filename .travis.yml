@@ -1,25 +1,28 @@
 env:
   global:
-    - secure: GYGGLpYtBOc1NtBpbvx3pIIns/T8sCTzg0ACHAnDFI3+SQh2iI7aSS8lnNArc6M9l2Wx5Oaiwqb0SzC+aMx4AYvICuPivpR1iK8ECH+jP+jDKYDDSwm3MldiDHu8EMZsUetsA6tRG5xtXicl4q/ZnPHDfRbV98lYoFqJPIrqZzG6f7ic0vSM4r9NeJZE9M9q9R0XrDpxrR0jbpQpMlKvvHWEeoG1fAGQ9cTR8HH32Mq9bPwimAYI5WYApZUV725EnKRhx5nGPQA27CNkyJF1LcdawrBBZXCVOOtNGOjmhbCPxY+IMUg75SEaqwaiPViIYk/l4dXpTQ6cZd7hvbDuUQ3rOQ8DnMj7esiblR/BUjJS8RNBx5rdMxxntZ+xibVBufZw83e/EVmqB+MbE5hQ5M7mInrH5qtSv8xez8C83QfTjaT7QyQv9jZMZ3F8dAlib6KZI0s6V2Q6JHHtRzFF3WHy7U1ZEjDLGIkdA0pYSTpYdy+QPb2VDzJ9vQdDO7AoM7y9oK/HS8SRsvrAMSlV+pD2J8dCLW5RmfSLxgVyJJeF0v2U4HBd+opy/ZcQm49y4FsMnyVbXxNdM50/uwmKGGcndMx4VfJzC9OTJ429wGS/syNbIJ8yxcANebkbkh/BFoncYG+fxy8uncudSL7LtkpXOhdlkohShQK8ce1TZ6c=
+  - secure: GYGGLpYtBOc1NtBpbvx3pIIns/T8sCTzg0ACHAnDFI3+SQh2iI7aSS8lnNArc6M9l2Wx5Oaiwqb0SzC+aMx4AYvICuPivpR1iK8ECH+jP+jDKYDDSwm3MldiDHu8EMZsUetsA6tRG5xtXicl4q/ZnPHDfRbV98lYoFqJPIrqZzG6f7ic0vSM4r9NeJZE9M9q9R0XrDpxrR0jbpQpMlKvvHWEeoG1fAGQ9cTR8HH32Mq9bPwimAYI5WYApZUV725EnKRhx5nGPQA27CNkyJF1LcdawrBBZXCVOOtNGOjmhbCPxY+IMUg75SEaqwaiPViIYk/l4dXpTQ6cZd7hvbDuUQ3rOQ8DnMj7esiblR/BUjJS8RNBx5rdMxxntZ+xibVBufZw83e/EVmqB+MbE5hQ5M7mInrH5qtSv8xez8C83QfTjaT7QyQv9jZMZ3F8dAlib6KZI0s6V2Q6JHHtRzFF3WHy7U1ZEjDLGIkdA0pYSTpYdy+QPb2VDzJ9vQdDO7AoM7y9oK/HS8SRsvrAMSlV+pD2J8dCLW5RmfSLxgVyJJeF0v2U4HBd+opy/ZcQm49y4FsMnyVbXxNdM50/uwmKGGcndMx4VfJzC9OTJ429wGS/syNbIJ8yxcANebkbkh/BFoncYG+fxy8uncudSL7LtkpXOhdlkohShQK8ce1TZ6c=
+  - secure: Qbx++PkLDx93aRVcIL468hOf/aIsPkbJcmoHRH11xITA3iEDj/jUteAaP84pU6lTth6q603hsL+ffvdwu00CGXlfz308ip3EYDwdKcI95EWuVfW4Wlvf6ff/DZ8ts1Qh0U69U2T1pIHbWZ0tGBV5LD20s9s+hUJucA4X8K7eqQcN2dfsWkThMhW3N5gPaAZerkp9rsOPBiT5W2oCVGCzvGgZsc/nUoGa+kE1pHg5A57txPgLWYYn32VgjQ2SPUNPn3NnyH59KOGNDHwZ9qmaJaSRTmZCf2x1JElaxEY46yNrPpuMOySOVVUYrQPwPUcYNFw3WvVY9Pgdav+fKAPVhrWW/TRnKtLtrK5mjpg7oWSe0XN63ULGOQqPhExh1aQDbQi9NSfl+NElvuDWy5DX8m6Nuv/RShz2TZvYiCRq6HTwX2+8yA0USONVHoZdaI0OSXYj6dXHKz7/PcqXRq15MY+1kBLmO47sWOLYJYOOK7HA591D0XJMYrSJua+/48qSKd+wmKmJkrMeUDdUIaXdfz4Amv7mXWlZaSjWRolq9lqSFNWGXoYDa3Wgu6QqYSc6QZn0SNxCpSniFXH/vj/d2l9p+Dwy2l9isx7uDIOa/rtlLA56HFytDiMcnUkaNhtygXZv39soKnVqRh6iRiwyuO3J/s9PAw5pYI3KZ5wjmTc=
 os:
-  - linux
-  - osx
+- linux
+- osx
 language: rust
 rust:
-  - nightly
-  - beta
-  - stable
+- nightly
+- beta
+- stable
 sudo: false
 branches:
   only:
-    - master
+  - master
 cache:
   directories:
-    - $HOME/elfutils
+  - "$HOME/elfutils"
 script:
-  - curl -sSL https://github.com/maidsafe/QA/raw/master/Bash%20Scripts/Travis/build_and_run_tests.sh | bash
+- curl -sSL https://github.com/maidsafe/QA/raw/master/Bash%20Scripts/Travis/build_and_run_tests.sh
+  | bash
 before_cache:
-  - curl -sSLO https://github.com/maidsafe/QA/raw/master/Bash%20Scripts/Travis/install_elfutils.sh
-  - . install_elfutils.sh
+- curl -sSLO https://github.com/maidsafe/QA/raw/master/Bash%20Scripts/Travis/install_elfutils.sh
+- ". install_elfutils.sh"
 after_success:
-  - curl -sSL https://github.com/maidsafe/QA/raw/master/Bash%20Scripts/Travis/after_success.sh | bash
+- curl -sSL https://github.com/maidsafe/QA/raw/master/Bash%20Scripts/Travis/after_success.sh
+  | bash
