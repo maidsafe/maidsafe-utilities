@@ -78,3 +78,32 @@ macro_rules! evaluate_option {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn evaluate_good_result() {
+        let result: Result<u8, ()> = Ok(1);
+        assert_eq!(evaluate_result!(result), 1);
+    }
+
+    #[test]
+    fn evaluate_good_option() {
+        let option = Some(1);
+        assert_eq!(evaluate_option!(option, "Error text."), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Message on failure.")]
+    fn evaluate_bad_result() {
+        let result: Result<(), String> = Err("Message on failure.".to_string());
+        evaluate_result!(result);
+    }
+
+    #[test]
+    #[should_panic(expected = "Message on failure.")]
+    fn evaluate_bad_option() {
+        let option: Option<()> = None;
+        evaluate_option!(option, "Message on failure.");
+    }
+}
