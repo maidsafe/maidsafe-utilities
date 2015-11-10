@@ -50,8 +50,8 @@ macro_rules! eval_result {
 /// ```
 /// # #[macro_use] extern crate maidsafe_utilities;
 /// # fn main() {
-/// let some_result = Some("Hello".to_string());
-/// let string_length = eval_option!(some_result, "This is a user-supplied text.").len();
+/// let some_option = Some("Hello".to_string());
+/// let string_length = eval_option!(some_option, "This is a user-supplied text.").len();
 /// assert_eq!(string_length, 5);
 /// # }
 /// ```
