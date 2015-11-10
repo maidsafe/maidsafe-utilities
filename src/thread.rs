@@ -48,13 +48,13 @@ impl Drop for RaiiThreadJoiner {
 /// # extern crate maidsafe_utilities;
 /// # fn main() {
 /// let _ = thread!("DaemonThread", move || {
-///     std::thread::sleep_ms(10);
+///     std::thread::sleep(std::time::Duration::from_millis(10));
 /// });
 ///
 /// let sleep_duration_ms = 500;
 /// let _raii_joiner = maidsafe_utilities::thread
 ///                                      ::RaiiThreadJoiner::new(thread!("ManagedThread", move || {
-///     std::thread::sleep_ms(sleep_duration_ms);
+///     std::thread::sleep(std::time::Duration::from_millis(sleep_duration_ms));
 /// }));
 /// # }
 /// ```
@@ -74,15 +74,15 @@ mod test {
 
     #[test]
     fn raii_thread_joiner() {
-        const SLEEP_DURATION_DAEMON: u32 = 150;
+        const SLEEP_DURATION_DAEMON: u64 = 150;
         // Factor of 3 should ensure that all threads gracefully exit when the test finishes
-        const SLEEP_DURATION_MANAGED: u32 = SLEEP_DURATION_DAEMON * 3;
+        const SLEEP_DURATION_MANAGED: u64 = SLEEP_DURATION_DAEMON * 3;
 
         {
             let time_before = time::SteadyTime::now();
             {
                 let _ = thread!("JoinerTestDaemon", move || {
-                    ::std::thread::sleep_ms(SLEEP_DURATION_DAEMON);
+                    ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION_DAEMON));
                 });
             }
             let time_after = time::SteadyTime::now();
@@ -96,7 +96,7 @@ mod test {
             let time_before = time::SteadyTime::now();
             {
                 let _raii_joiner = RaiiThreadJoiner::new(thread!("JoinerTestManaged", move || {
-                    ::std::thread::sleep_ms(SLEEP_DURATION_MANAGED);
+                    ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION_MANAGED));
                 }));
             }
             let time_after = time::SteadyTime::now();
