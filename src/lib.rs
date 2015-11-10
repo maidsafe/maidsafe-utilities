@@ -38,7 +38,10 @@
 #![allow(box_pointers, fat_ptr_transmutes, missing_copy_implementations,
          missing_debug_implementations)]
 
-/// Macros to abort on erroneous results and options.
-#[macro_use] mod abort;
+/// Macros to abort on erroneous `Result`s and `Option`s.
+#[macro_use]
+pub mod abort;
+
 /// Utilities related to threading
-#[macro_use] pub mod thread;
+#[macro_use]
+pub mod thread;

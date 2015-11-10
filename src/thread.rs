@@ -17,24 +17,24 @@
 
 /// A RAII style thread joiner. The destruction of an instance of this type will block until
 /// the thread it is managing has joined.
-pub struct RAIIThreadJoiner {
+pub struct RaiiThreadJoiner {
     joiner: Option<::std::thread::JoinHandle<()>>,
 }
 
-impl RAIIThreadJoiner {
+impl RaiiThreadJoiner {
     /// Create a new instance of self-managing thread joiner
-    pub fn new(joiner: ::std::thread::JoinHandle<()>) -> RAIIThreadJoiner {
-        RAIIThreadJoiner {
+    pub fn new(joiner: ::std::thread::JoinHandle<()>) -> RaiiThreadJoiner {
+        RaiiThreadJoiner {
             joiner: Some(joiner),
         }
     }
 }
 
-impl Drop for RAIIThreadJoiner {
+impl Drop for RaiiThreadJoiner {
     fn drop(&mut self) {
-        let joiner = eval_option!(self.joiner.take(),
-                                  "Programming Error - Please report this as a Bug.");
-        eval_result!(joiner.join());
+        let joiner = evaluate_option!(self.joiner.take(),
+                                      "Programming Error - please report this as a bug.");
+        evaluate_result!(joiner.join());
     }
 }
 
@@ -44,25 +44,26 @@ impl Drop for RAIIThreadJoiner {
 /// #Examples
 ///
 /// ```
-/// # #[macro_use] extern crate maidsafe_utilities;
+/// # #[macro_use]
+/// # extern crate maidsafe_utilities;
 /// # fn main() {
 /// let _ = thread!("DaemonThread", move || {
 ///     std::thread::sleep_ms(10);
 /// });
 ///
-/// let sleep_durration_ms = 500;
+/// let sleep_duration_ms = 500;
 /// let _raii_joiner = maidsafe_utilities::thread
-///                                      ::RAIIThreadJoiner::new(thread!("ManagedThread", move || {
-///     std::thread::sleep_ms(sleep_durration_ms);
+///                                      ::RaiiThreadJoiner::new(thread!("ManagedThread", move || {
+///     std::thread::sleep_ms(sleep_duration_ms);
 /// }));
 /// # }
 /// ```
 #[macro_export]
 macro_rules! thread {
     ($thread_name:expr, $entry_point:expr) => {
-        eval_result!(::std::thread::Builder::new()
-                                            .name($thread_name.to_string())
-                                            .spawn($entry_point))
+        evaluate_result!(::std::thread::Builder::new()
+                                                .name($thread_name.to_string())
+                                                .spawn($entry_point))
     }
 }
 
@@ -79,13 +80,13 @@ mod test {
         const SLEEP_DURATION_MANAGED: u32 = SLEEP_DURATION_DAEMON * 3;
 
         {
-            let time_before = time::now();
+            let time_before = time::SteadyTime::now();
             {
                 let _ = thread!("JoinerTestDaemon", move || {
                     ::std::thread::sleep_ms(SLEEP_DURATION_DAEMON);
                 });
             }
-            let time_after = time::now();
+            let time_after = time::SteadyTime::now();
 
             let diff = time_after - time_before;
 
@@ -93,13 +94,13 @@ mod test {
         }
 
         {
-            let time_before = time::now();
+            let time_before = time::SteadyTime::now();
             {
-                let _raii_joiner = RAIIThreadJoiner::new(thread!("JoinerTestManaged", move || {
+                let _raii_joiner = RaiiThreadJoiner::new(thread!("JoinerTestManaged", move || {
                     ::std::thread::sleep_ms(SLEEP_DURATION_MANAGED);
                 }));
             }
-            let time_after = time::now();
+            let time_after = time::SteadyTime::now();
 
             let diff = time_after - time_before;
 
