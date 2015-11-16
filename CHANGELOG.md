@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.1.1]
+- Remove wildcard dependencies.
+
 ## [0.1.0]
 - Thread spawning
 - Thread joining via RAII
