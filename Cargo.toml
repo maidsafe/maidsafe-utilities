@@ -2,7 +2,7 @@
 name          = "maidsafe_utilities"
 readme        = "README.md"
 license       = "GPL-3.0"
-version       = "0.1.1"
+version       = "0.1.2"
 authors       = ["MaidSafe Developers <dev@maidsafe.net>"]
 homepage      = "http://maidsafe.net"
 repository    = "https://github.com/maidsafe/maidsafe_utilities"
