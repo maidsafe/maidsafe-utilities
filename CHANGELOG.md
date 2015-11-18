@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.1.2]
+- Added env_logger initialiser.
+
 ## [0.1.1]
 - Remove wildcard dependencies.
 
