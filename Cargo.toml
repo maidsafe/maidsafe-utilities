@@ -2,12 +2,14 @@
 name          = "maidsafe_utilities"
 readme        = "README.md"
 license       = "GPL-3.0"
-version       = "0.1.1"
+version       = "0.1.2"
 authors       = ["MaidSafe Developers <dev@maidsafe.net>"]
 homepage      = "http://maidsafe.net"
 repository    = "https://github.com/maidsafe/maidsafe_utilities"
 description   = "Rust utility functions provided by MaidSafe."
 documentation = "http://maidsafe.net/maidsafe_utilities/latest"
 
-[dev-dependencies]
+[dependencies]
+env_logger = "~0.3.2"
+log = "~0.3.3"
 time = "~0.1.34"
