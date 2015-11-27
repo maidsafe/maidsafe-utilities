@@ -26,19 +26,22 @@ pub enum EventSenderError<Category, EventSubset> {
 
 /// This structure is coded to achieve event-subsetting. Receivers in Rust are blocking. One cannot
 /// listen to multiple receivers at the same time except by using `try_recv` which again is bad for
-/// the same reasons spin-lock based on some sleep is bad (wasting cycles, 50% efficienct on an
-/// average etc.). Consider a module that listens to signals from various other modules. Different
+/// the same reasons spin-lock based on some sleep is bad (wasting cycles, 50% efficient on an
+/// average etc.).
+///
+/// Consider a module that listens to signals from various other modules. Different
 /// modules want to talk to this one. So one solution is make a common event set and all senders
 /// (registered in all the interested modules) send events from the same set. This is bad for
 /// maintenance. Wrong modules might use events not expected to originate from them since it is just
 /// one huge event-set. Thus there is a need of event-subsetting and distribute this module-wise so
-/// we prevent modules from using wrong events, completely by design and code-mechanics. Also we
-/// don't want to spawn threads listening to different receivers (which could force to share
+/// we prevent modules from using wrong events, completely by design and code-mechanics.
+///
+/// We also don't want to spawn threads listening to different receivers (which could force shared
 /// ownership and is anyway silly otherwise too). This is what `EventSender` helps to salvage. A
 /// simple mechanism that does what a `skip-list` in linked list does. It brings forth a concept of
 /// an Umbrella event-category and an event subset. The creator of `EventSender` hard-codes the
 /// category for different observers. Each category only links to a particular event-subset and
-/// type information of this is put into `EventSender` to during it's construction. Thus when
+/// type information of this is put into `EventSender` too during its construction. Thus when
 /// distributed, the modules cannot cheat (do the wrong thing) by trying to fire an event they are
 /// not permitted to. Also a single thread listens to many receivers. All problems solved.
 ///
@@ -67,23 +70,23 @@ pub enum EventSenderError<Category, EventSubset> {
 ///     }
 ///
 ///     let (ui_event_tx, ui_event_rx) = std::sync::mpsc::channel();
-///     let (catergory_tx, catergory_rx) = std::sync::mpsc::channel();
+///     let (category_tx, category_rx) = std::sync::mpsc::channel();
 ///     let (network_event_tx, network_event_rx) = std::sync::mpsc::channel();
 ///
 ///     let ui_event_sender = maidsafe_utilities::event_sender
 ///                                             ::EventSender::<EventCategory, UiEvent>
 ///                                             ::new(ui_event_tx,
 ///                                                   EventCategory::UserInterface,
-///                                                   catergory_tx.clone());
+///                                                   category_tx.clone());
 ///
 ///     let nw_event_sender = maidsafe_utilities::event_sender
 ///                                             ::EventSender::<EventCategory, NetworkEvent>
 ///                                             ::new(network_event_tx,
 ///                                                   EventCategory::Network,
-///                                                   catergory_tx);
+///                                                   category_tx);
 ///
 ///     let joiner = thread!("EventListenerThread", move || {
-///         for it in catergory_rx.iter() {
+///         for it in category_rx.iter() {
 ///             match it {
 ///                 EventCategory::Network => {
 ///                     if let Ok(network_event) = network_event_rx.try_recv() {
@@ -111,7 +114,6 @@ pub enum EventSenderError<Category, EventSubset> {
 ///     assert!(ui_event_sender.send(UiEvent::CreateDirectory).is_ok());
 ///     assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 /// # }
-#[derive(Clone)]
 pub struct EventSender<Category, EventSubset> {
     event_tx         : ::std::sync::mpsc::Sender<EventSubset>,
     event_category   : Category,
@@ -145,6 +147,32 @@ impl<Category   : ::std::fmt::Debug + Clone,
     }
 }
 
+// (Spandan) Need to manually implement this because the default derived one seems faulty in that
+// it requires EventSubset to be clonable even though ::std::sync::mpsc::Sender<EventSubset> does
+// not require EventSubset to be clonable for itself being cloned.
+impl<Category   : ::std::fmt::Debug + Clone,
+     EventSubset: ::std::fmt::Debug> Clone for EventSender<Category, EventSubset> {
+    fn clone(&self) -> EventSender<Category, EventSubset> {
+        EventSender {
+            event_tx: self.event_tx.clone(),
+            event_category: self.event_category.clone(),
+            event_category_tx: self.event_category_tx.clone(),
+        }
+    }
+}
+
+/// Category of events meant for a MaidSafe observer listening to both, routing and crust events
+#[derive(Clone, Debug)]
+pub enum MaidSafeEventCategory {
+    /// Used by Crust to indicate a Crust Event has been fired
+    CrustEvent,
+    /// Used by Routing to indicated a Routing Event has been fired
+    RoutingEvent,
+}
+
+/// Observer that Crust (and users of Routing if required) must allow to be registered
+pub type MaidSafeObserver<EventSubset> = EventSender<MaidSafeEventCategory, EventSubset>;
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -173,7 +201,7 @@ mod test {
         }
 
         let (ui_event_tx, ui_event_rx) = ::std::sync::mpsc::channel();
-        let (catergory_tx, catergory_rx) = ::std::sync::mpsc::channel();
+        let (category_tx, category_rx) = ::std::sync::mpsc::channel();
         let (network_event_tx, network_event_rx) = ::std::sync::mpsc::channel();
 
         type UiEventSender = EventSender<EventCategory, UiEvent>;
@@ -181,14 +209,14 @@ mod test {
 
         let ui_event_sender = UiEventSender::new(ui_event_tx,
                                                  EventCategory::UserInterface,
-                                                 catergory_tx.clone());
+                                                 category_tx.clone());
 
         let nw_event_sender = NetworkEventSender::new(network_event_tx,
                                                       EventCategory::Network,
-                                                      catergory_tx);
+                                                      category_tx);
 
         let joiner = thread!("EventListenerThread", move || {
-            for it in catergory_rx.iter() {
+            for it in category_rx.iter() {
                 match it {
                     EventCategory::Network => {
                         if let Ok(network_event) = network_event_rx.try_recv() {
