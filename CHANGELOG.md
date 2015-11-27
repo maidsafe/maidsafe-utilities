@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.1.3]
+- Added MaidSafeObserver to facilitate Routing to work with multiple event-subsets in a single thread.
+
 ## [0.1.2]
 - Added env_logger initialiser.
 
