@@ -61,7 +61,7 @@ impl Drop for RaiiThreadJoiner {
 #[macro_export]
 macro_rules! thread {
     ($thread_name:expr, $entry_point:expr) => {
-        unwrap_result!(::std::thread::Builder::new().name($thread_name.to_string())
+        unwrap_result!(::std::thread::Builder::new().name($thread_name.to_owned())
                                                     .spawn($entry_point))
     }
 }
