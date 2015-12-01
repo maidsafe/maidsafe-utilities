@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.1.4]
+- Added serialisation module to encode and decode types using Cbor.
+
 ## [0.1.3]
 - Added MaidSafeObserver to facilitate Routing to work with multiple event-subsets in a single thread.
 
