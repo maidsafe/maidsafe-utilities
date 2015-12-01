@@ -21,7 +21,8 @@
 pub enum SerialisationError {
     /// Encapsulated Cbor Error
     CborError(::cbor::CborError),
-    /// To convert Option to a Result
+    /// To convert Option to a Result when deserialisation is unsuccessful and returns an
+    /// `Option::None`
     UnsuccessfulDecode,
 }
 
