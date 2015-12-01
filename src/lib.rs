@@ -38,18 +38,20 @@
 #![allow(box_pointers, fat_ptr_transmutes, missing_copy_implementations,
          missing_debug_implementations)]
 
-extern crate env_logger;
-#[macro_use]
-extern crate log as logger;
 extern crate time;
+extern crate cbor;
+extern crate env_logger;
+extern crate rustc_serialize;
+#[macro_use] extern crate log as logger;
 
-#[macro_use]
-mod unwrap;
+#[macro_use] mod unwrap;
 
 /// Utilities related to threading.
-#[macro_use]
-pub mod thread;
-/// Utilities related to event-subsetting.
-pub mod event_sender;
+#[macro_use] pub mod thread;
+
 /// Allows initialising the env_logger with a standard message format.
 pub mod log;
+/// Utilities related to event-subsetting.
+pub mod event_sender;
+/// Functions for serialisation and deserialisation
+pub mod serialisation;
