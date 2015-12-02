@@ -37,8 +37,9 @@
 macro_rules! unwrap_result {
     ($result:expr) => {
         $result.unwrap_or_else(|error| {
-            let message =
-                "Result evaluated to Err: ".to_string() + &format!("{:?}", error)[..];
+            let mut message =
+                "Result evaluated to Err: ".to_owned();
+            message.push_str(&format!("{:?}", error)[..]);
             let decorator_length = ::std::cmp::min(message.len() + 2, 100);
             let decorator = (0..decorator_length).map(|_| "=").collect::<String>();
             panic!("\n\n {}\n| {} |\n {}\n\n", decorator, message, decorator)
@@ -68,9 +69,11 @@ macro_rules! unwrap_result {
 macro_rules! unwrap_option {
     ($option:expr, $user_string:expr) => {
         $option.unwrap_or_else(|| {
-            let mut error = "Option evaluated to None".to_string();
+            let mut error = "Option evaluated to None".to_owned();
             if !$user_string.is_empty() {
-                error = error + ": \"" + $user_string + "\"";
+                error.push_str(": \"");
+                error.push_str($user_string);
+                error.push_str("\"");
             }
             let decorator_length = ::std::cmp::min(error.len() + 2, 100);
             let decorator = (0..decorator_length).map(|_| "=").collect::<String>();
