@@ -67,9 +67,10 @@ pub fn init(show_thread_name: bool) {
     INITIALISE_LOGGER.call_once(|| {
         let format = move |record: &::logger::LogRecord| {
             let now = ::time::now();
-            let mut thread_name = "".to_string();
+            let mut thread_name = "".to_owned();
             if show_thread_name {
-                thread_name = ::std::thread::current().name().unwrap_or("???").to_owned() + " ";
+                thread_name = ::std::thread::current().name().unwrap_or("???").to_owned();
+                thread_name.push_str(" ");
             }
             format!("{} {}.{:06} {}[{}:{}:{}] {}",
                 match record.level() {
@@ -79,7 +80,9 @@ pub fn init(show_thread_name: bool) {
                     ::logger::LogLevel::Debug => 'D',
                     ::logger::LogLevel::Trace => 'T',
                 },
-                ::time::strftime("%T", &now).unwrap(),
+                if let Ok(time_txt) = ::time::strftime("%T", &now) {
+                                                                    time_txt
+                                                                    } else { "".to_owned() },
                 now.tm_nsec / 1000,
                 thread_name,
                 record.location().module_path().splitn(2, "::").next().unwrap_or(""),
