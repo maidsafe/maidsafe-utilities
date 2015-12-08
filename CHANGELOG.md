@@ -1,5 +1,10 @@
 # MaidSafe Utilities - Change Log
 
+## [0.1.5]
+- to_string() -> to_owned()
+- str + str -> str.push(str)
+
+
 ## [0.1.4]
 - Added serialisation module to encode and decode types using Cbor.
 
