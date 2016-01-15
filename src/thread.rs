@@ -15,15 +15,17 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+use std::thread::JoinHandle;
+
 /// A RAII style thread joiner. The destruction of an instance of this type will block until
 /// the thread it is managing has joined.
 pub struct RaiiThreadJoiner {
-    joiner: Option<::std::thread::JoinHandle<()>>,
+    joiner: Option<JoinHandle<()>>,
 }
 
 impl RaiiThreadJoiner {
     /// Create a new instance of self-managing thread joiner
-    pub fn new(joiner: ::std::thread::JoinHandle<()>) -> RaiiThreadJoiner {
+    pub fn new(joiner: JoinHandle<()>) -> RaiiThreadJoiner {
         RaiiThreadJoiner {
             joiner: Some(joiner),
         }

@@ -15,13 +15,16 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+use std::fmt;
+use std::sync::mpsc;
+
 /// Errors that can be returned by EventSender
 #[derive(Debug)]
 pub enum EventSenderError<Category, EventSubset> {
     /// Error sending the event subset
-    EventSendError(::std::sync::mpsc::SendError<EventSubset>),
+    EventSendError(mpsc::SendError<EventSubset>),
     /// Error sending the event category
-    CategorySendError(::std::sync::mpsc::SendError<Category>),
+    CategorySendError(mpsc::SendError<Category>),
 }
 
 /// This structure is coded to achieve event-subsetting. Receivers in Rust are blocking. One cannot
@@ -115,18 +118,18 @@ pub enum EventSenderError<Category, EventSubset> {
 ///     assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 /// # }
 pub struct EventSender<Category, EventSubset> {
-    event_tx         : ::std::sync::mpsc::Sender<EventSubset>,
+    event_tx         : mpsc::Sender<EventSubset>,
     event_category   : Category,
-    event_category_tx: ::std::sync::mpsc::Sender<Category>,
+    event_category_tx: mpsc::Sender<Category>,
 }
 
-impl<Category   : ::std::fmt::Debug + Clone,
-     EventSubset: ::std::fmt::Debug> EventSender<Category, EventSubset> {
+impl<Category   : fmt::Debug + Clone,
+     EventSubset: fmt::Debug> EventSender<Category, EventSubset> {
     /// Create a new instance of `EventSender`. Category type, category value and EventSubset type
     /// are baked into `EventSender` to disallow user code from misusing it.
-    pub fn new(event_tx         : ::std::sync::mpsc::Sender<EventSubset>,
+    pub fn new(event_tx         : mpsc::Sender<EventSubset>,
                event_category   : Category,
-               event_category_tx: ::std::sync::mpsc::Sender<Category>) -> EventSender<Category, EventSubset> {
+               event_category_tx: mpsc::Sender<Category>) -> EventSender<Category, EventSubset> {
         EventSender {
             event_tx         : event_tx,
             event_category   : event_category,
@@ -148,10 +151,10 @@ impl<Category   : ::std::fmt::Debug + Clone,
 }
 
 // (Spandan) Need to manually implement this because the default derived one seems faulty in that
-// it requires EventSubset to be clonable even though ::std::sync::mpsc::Sender<EventSubset> does
+// it requires EventSubset to be clonable even though mpsc::Sender<EventSubset> does
 // not require EventSubset to be clonable for itself being cloned.
-impl<Category   : ::std::fmt::Debug + Clone,
-     EventSubset: ::std::fmt::Debug> Clone for EventSender<Category, EventSubset> {
+impl<Category   : fmt::Debug + Clone,
+     EventSubset: fmt::Debug> Clone for EventSender<Category, EventSubset> {
     fn clone(&self) -> EventSender<Category, EventSubset> {
         EventSender {
             event_tx: self.event_tx.clone(),
@@ -176,6 +179,7 @@ pub type MaidSafeObserver<EventSubset> = EventSender<MaidSafeEventCategory, Even
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::sync::mpsc;
 
     #[test]
     fn marshall_multiple_events() {
@@ -200,9 +204,9 @@ mod test {
             Terminate,
         }
 
-        let (ui_event_tx, ui_event_rx) = ::std::sync::mpsc::channel();
-        let (category_tx, category_rx) = ::std::sync::mpsc::channel();
-        let (network_event_tx, network_event_rx) = ::std::sync::mpsc::channel();
+        let (ui_event_tx, ui_event_rx) = mpsc::channel();
+        let (category_tx, category_rx) = mpsc::channel();
+        let (network_event_tx, network_event_rx) = mpsc::channel();
 
         type UiEventSender = EventSender<EventCategory, UiEvent>;
         type NetworkEventSender = EventSender<EventCategory, NetworkEvent>;

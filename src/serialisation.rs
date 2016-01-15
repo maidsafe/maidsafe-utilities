@@ -15,6 +15,9 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+use cbor::{Encoder, Decoder};
+use rustc_serialize::{Encodable, Decodable};
+
 /// Wrapper for Serialisation Errors. This is present because cbor code paths don't always return a
 /// Result - they return an Option too.
 #[derive(Debug)]
@@ -27,17 +30,15 @@ pub enum SerialisationError {
 }
 
 /// Function to serialise an Encodable type
-pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError>
-                                 where T: ::rustc_serialize::Encodable {
-    let mut encoder = ::cbor::Encoder::from_memory();
+pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError> where T: Encodable {
+    let mut encoder = Encoder::from_memory();
     try!(encoder.encode(&[data]));
     Ok(encoder.into_bytes())
 }
 
 /// Function to deserialise a Decodable type
-pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
-                                      where T: ::rustc_serialize::Decodable {
-    let mut decoder = ::cbor::Decoder::from_bytes(data);
+pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError> where T: Decodable {
+    let mut decoder = Decoder::from_bytes(data);
     Ok(try!(try!(decoder.decode().next().ok_or(SerialisationError::UnsuccessfulDecode))))
 }
 
