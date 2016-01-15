@@ -118,21 +118,21 @@ pub enum EventSenderError<Category, EventSubset> {
 ///     assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 /// # }
 pub struct EventSender<Category, EventSubset> {
-    event_tx         : mpsc::Sender<EventSubset>,
-    event_category   : Category,
+    event_tx: mpsc::Sender<EventSubset>,
+    event_category: Category,
     event_category_tx: mpsc::Sender<Category>,
 }
 
-impl<Category   : fmt::Debug + Clone,
-     EventSubset: fmt::Debug> EventSender<Category, EventSubset> {
+impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category, EventSubset> {
     /// Create a new instance of `EventSender`. Category type, category value and EventSubset type
     /// are baked into `EventSender` to disallow user code from misusing it.
-    pub fn new(event_tx         : mpsc::Sender<EventSubset>,
-               event_category   : Category,
-               event_category_tx: mpsc::Sender<Category>) -> EventSender<Category, EventSubset> {
+    pub fn new(event_tx: mpsc::Sender<EventSubset>,
+               event_category: Category,
+               event_category_tx: mpsc::Sender<Category>)
+               -> EventSender<Category, EventSubset> {
         EventSender {
-            event_tx         : event_tx,
-            event_category   : event_category,
+            event_tx: event_tx,
+            event_category: event_category,
             event_category_tx: event_category_tx,
         }
     }
@@ -140,10 +140,10 @@ impl<Category   : fmt::Debug + Clone,
     /// Fire an allowed event/signal to the observer.
     pub fn send(&self, event: EventSubset) -> Result<(), EventSenderError<Category, EventSubset>> {
         if let Err(error) = self.event_tx.send(event) {
-            return Err(EventSenderError::EventSendError(error))
+            return Err(EventSenderError::EventSendError(error));
         }
         if let Err(error) = self.event_category_tx.send(self.event_category.clone()) {
-            return Err(EventSenderError::CategorySendError(error))
+            return Err(EventSenderError::CategorySendError(error));
         }
 
         Ok(())
@@ -153,8 +153,8 @@ impl<Category   : fmt::Debug + Clone,
 // (Spandan) Need to manually implement this because the default derived one seems faulty in that
 // it requires EventSubset to be clonable even though mpsc::Sender<EventSubset> does
 // not require EventSubset to be clonable for itself being cloned.
-impl<Category   : fmt::Debug + Clone,
-     EventSubset: fmt::Debug> Clone for EventSender<Category, EventSubset> {
+impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> Clone for EventSender<Category,
+                                                                                  EventSubset> {
     fn clone(&self) -> EventSender<Category, EventSubset> {
         EventSender {
             event_tx: self.event_tx.clone(),
@@ -226,10 +226,13 @@ mod test {
                         if let Ok(network_event) = network_event_rx.try_recv() {
                             match network_event {
                                 NetworkEvent::Connected(token) => assert_eq!(token, TOKEN),
-                                _ => panic!("Shouldn't have received this event: {:?}", network_event),
+                                _ => {
+                                    panic!("Shouldn't have received this event: {:?}",
+                                           network_event)
+                                }
                             }
                         }
-                    },
+                    }
                     EventCategory::UserInterface => {
                         if let Ok(ui_event) = ui_event_rx.try_recv() {
                             match ui_event {
@@ -261,7 +264,7 @@ mod test {
                     UiEvent::CreateDirectory(dir_name) => assert_eq!(dir_name, DIR_NAME),
                     _ => panic!("Expected a different event !"),
                 }
-            },
+            }
             _ => panic!("Expected a different error !"),
         }
     }

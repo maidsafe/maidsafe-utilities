@@ -73,22 +73,24 @@ pub fn init(show_thread_name: bool) {
                 thread_name.push_str(" ");
             }
             format!("{} {}.{:06} {}[{}:{}:{}] {}",
-                match record.level() {
-                    ::logger::LogLevel::Error => 'E',
-                    ::logger::LogLevel::Warn => 'W',
-                    ::logger::LogLevel::Info => 'I',
-                    ::logger::LogLevel::Debug => 'D',
-                    ::logger::LogLevel::Trace => 'T',
-                },
-                if let Ok(time_txt) = ::time::strftime("%T", &now) {
-                                                                    time_txt
-                                                                    } else { "".to_owned() },
-                now.tm_nsec / 1000,
-                thread_name,
-                record.location().module_path().splitn(2, "::").next().unwrap_or(""),
-                record.location().file(),
-                record.location().line(),
-                record.args())
+                    match record.level() {
+                        ::logger::LogLevel::Error => 'E',
+                        ::logger::LogLevel::Warn => 'W',
+                        ::logger::LogLevel::Info => 'I',
+                        ::logger::LogLevel::Debug => 'D',
+                        ::logger::LogLevel::Trace => 'T',
+                    },
+                    if let Ok(time_txt) = ::time::strftime("%T", &now) {
+                        time_txt
+                    } else {
+                        "".to_owned()
+                    },
+                    now.tm_nsec / 1000,
+                    thread_name,
+                    record.location().module_path().splitn(2, "::").next().unwrap_or(""),
+                    record.location().file(),
+                    record.location().line(),
+                    record.args())
         };
 
         let mut builder = ::env_logger::LogBuilder::new();

@@ -30,14 +30,18 @@ pub enum SerialisationError {
 }
 
 /// Function to serialise an Encodable type
-pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError> where T: Encodable {
+pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError>
+    where T: Encodable
+{
     let mut encoder = Encoder::from_memory();
     try!(encoder.encode(&[data]));
     Ok(encoder.into_bytes())
 }
 
 /// Function to deserialise a Decodable type
-pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError> where T: Decodable {
+pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
+    where T: Decodable
+{
     let mut decoder = Decoder::from_bytes(data);
     Ok(try!(try!(decoder.decode().next().ok_or(SerialisationError::UnsuccessfulDecode))))
 }
@@ -59,7 +63,8 @@ mod test {
                              "Some-String".to_owned());
 
         let serialised_data = unwrap_result!(serialise(&original_data));
-        let deserialised_data: (Vec<u8>, Vec<i64>, String) = unwrap_result!(deserialise(&serialised_data));
+        let deserialised_data: (Vec<u8>, Vec<i64>, String) =
+            unwrap_result!(deserialise(&serialised_data));
         assert_eq!(original_data, deserialised_data);
     }
 }

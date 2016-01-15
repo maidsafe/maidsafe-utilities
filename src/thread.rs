@@ -26,9 +26,7 @@ pub struct RaiiThreadJoiner {
 impl RaiiThreadJoiner {
     /// Create a new instance of self-managing thread joiner
     pub fn new(joiner: JoinHandle<()>) -> RaiiThreadJoiner {
-        RaiiThreadJoiner {
-            joiner: Some(joiner),
-        }
+        RaiiThreadJoiner { joiner: Some(joiner) }
     }
 }
 
@@ -98,7 +96,8 @@ mod test {
             let time_before = time::SteadyTime::now();
             {
                 let _raii_joiner = RaiiThreadJoiner::new(thread!("JoinerTestManaged", move || {
-                    ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION_MANAGED));
+                    ::std::thread::sleep(
+                        ::std::time::Duration::from_millis(SLEEP_DURATION_MANAGED));
                 }));
             }
             let time_after = time::SteadyTime::now();
