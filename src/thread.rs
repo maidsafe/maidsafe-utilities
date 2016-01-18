@@ -71,6 +71,8 @@ mod test {
     extern crate time;
 
     use super::*;
+    use std::thread;
+    use std::time::Duration;
 
     #[test]
     fn raii_thread_joiner() {
@@ -82,7 +84,7 @@ mod test {
             let time_before = time::SteadyTime::now();
             {
                 let _ = thread!("JoinerTestDaemon", move || {
-                    ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION_DAEMON));
+                    thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
                 });
             }
             let time_after = time::SteadyTime::now();
@@ -96,8 +98,7 @@ mod test {
             let time_before = time::SteadyTime::now();
             {
                 let _raii_joiner = RaiiThreadJoiner::new(thread!("JoinerTestManaged", move || {
-                    ::std::thread::sleep(
-                        ::std::time::Duration::from_millis(SLEEP_DURATION_MANAGED));
+                    thread::sleep(Duration::from_millis(SLEEP_DURATION_MANAGED));
                 }));
             }
             let time_after = time::SteadyTime::now();
