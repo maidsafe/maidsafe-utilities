@@ -73,6 +73,7 @@ mod test {
     use super::*;
     use std::thread;
     use std::time::Duration;
+    use time::SteadyTime;
 
     #[test]
     fn raii_thread_joiner() {
@@ -81,13 +82,13 @@ mod test {
         const SLEEP_DURATION_MANAGED: u64 = SLEEP_DURATION_DAEMON * 3;
 
         {
-            let time_before = time::SteadyTime::now();
+            let time_before = SteadyTime::now();
             {
                 let _ = thread!("JoinerTestDaemon", move || {
                     thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
                 });
             }
-            let time_after = time::SteadyTime::now();
+            let time_after = SteadyTime::now();
 
             let diff = time_after - time_before;
 
@@ -95,13 +96,13 @@ mod test {
         }
 
         {
-            let time_before = time::SteadyTime::now();
+            let time_before = SteadyTime::now();
             {
                 let _raii_joiner = RaiiThreadJoiner::new(thread!("JoinerTestManaged", move || {
                     thread::sleep(Duration::from_millis(SLEEP_DURATION_MANAGED));
                 }));
             }
-            let time_after = time::SteadyTime::now();
+            let time_after = SteadyTime::now();
 
             let diff = time_after - time_before;
 
