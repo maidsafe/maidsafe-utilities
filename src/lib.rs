@@ -42,12 +42,13 @@ extern crate time;
 extern crate cbor;
 extern crate env_logger;
 extern crate rustc_serialize;
-#[macro_use] extern crate log as logger;
+#[macro_use]
+extern crate log as logger;
 
-#[macro_use] mod unwrap;
+#[macro_use]mod unwrap;
 
 /// Utilities related to threading.
-#[macro_use] pub mod thread;
+#[macro_use]pub mod thread;
 
 /// Allows initialising the env_logger with a standard message format.
 pub mod log;

@@ -15,18 +15,18 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+use std::thread::JoinHandle;
+
 /// A RAII style thread joiner. The destruction of an instance of this type will block until
 /// the thread it is managing has joined.
 pub struct RaiiThreadJoiner {
-    joiner: Option<::std::thread::JoinHandle<()>>,
+    joiner: Option<JoinHandle<()>>,
 }
 
 impl RaiiThreadJoiner {
     /// Create a new instance of self-managing thread joiner
-    pub fn new(joiner: ::std::thread::JoinHandle<()>) -> RaiiThreadJoiner {
-        RaiiThreadJoiner {
-            joiner: Some(joiner),
-        }
+    pub fn new(joiner: JoinHandle<()>) -> RaiiThreadJoiner {
+        RaiiThreadJoiner { joiner: Some(joiner) }
     }
 }
 
@@ -71,6 +71,9 @@ mod test {
     extern crate time;
 
     use super::*;
+    use std::thread;
+    use std::time::Duration;
+    use time::SteadyTime;
 
     #[test]
     fn raii_thread_joiner() {
@@ -79,13 +82,13 @@ mod test {
         const SLEEP_DURATION_MANAGED: u64 = SLEEP_DURATION_DAEMON * 3;
 
         {
-            let time_before = time::SteadyTime::now();
+            let time_before = SteadyTime::now();
             {
                 let _ = thread!("JoinerTestDaemon", move || {
-                    ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION_DAEMON));
+                    thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
                 });
             }
-            let time_after = time::SteadyTime::now();
+            let time_after = SteadyTime::now();
 
             let diff = time_after - time_before;
 
@@ -93,13 +96,13 @@ mod test {
         }
 
         {
-            let time_before = time::SteadyTime::now();
+            let time_before = SteadyTime::now();
             {
                 let _raii_joiner = RaiiThreadJoiner::new(thread!("JoinerTestManaged", move || {
-                    ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION_MANAGED));
+                    thread::sleep(Duration::from_millis(SLEEP_DURATION_MANAGED));
                 }));
             }
-            let time_after = time::SteadyTime::now();
+            let time_after = SteadyTime::now();
 
             let diff = time_after - time_before;
 
