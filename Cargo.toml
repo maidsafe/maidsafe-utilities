@@ -11,6 +11,7 @@ homepage = "http://maidsafe.net"
 
 [dependencies]
 cbor = "~0.3.16"
+clippy = {version = "~0.0.37", optional = true}
 env_logger = "~0.3.2"
 log = "~0.3.4"
 rustc-serialize = "~0.3.16"
