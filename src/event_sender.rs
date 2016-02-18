@@ -169,7 +169,7 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> Clone for EventSende
 pub enum MaidSafeEventCategory {
     /// Used by Crust to indicate a Crust Event has been fired
     CrustEvent,
-    /// Used by Routing to indicated a Routing Event has been fired
+    /// Used by Routing to indicate a Routing Event has been fired
     RoutingEvent,
 }
 
