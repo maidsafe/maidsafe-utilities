@@ -72,6 +72,15 @@ pub fn init(show_thread_name: bool) {
                 thread_name = ::std::thread::current().name().unwrap_or("???").to_owned();
                 thread_name.push_str(" ");
             }
+            let filename_length = record.location().file().len();
+            let file = if filename_length > 40 {
+                let mut file = "...".to_owned();
+                file.push_str(&record.location().file()[(filename_length - 40)..filename_length]);
+                file
+            } else {
+                record.location().file().to_owned()
+            };
+
             format!("{} {}.{:06} {}[{}:{}:{}] {}",
                     match record.level() {
                         ::logger::LogLevel::Error => 'E',
@@ -88,7 +97,7 @@ pub fn init(show_thread_name: bool) {
                     now.tm_nsec / 1000,
                     thread_name,
                     record.location().module_path().splitn(2, "::").next().unwrap_or(""),
-                    record.location().file(),
+                    file,
                     record.location().line(),
                     record.args())
         };

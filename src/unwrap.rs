@@ -99,7 +99,7 @@ mod test {
     #[test]
     #[should_panic(expected = "Message on failure.")]
     fn unwrap_bad_result() {
-        let result: Result<(), String> = Err("Message on failure.".to_string());
+        let result: Result<(), String> = Err("Message on failure.".to_owned());
         unwrap_result!(result);
     }
 

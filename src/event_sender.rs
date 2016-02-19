@@ -22,9 +22,9 @@ use std::sync::mpsc;
 #[derive(Debug)]
 pub enum EventSenderError<Category, EventSubset> {
     /// Error sending the event subset
-    EventSendError(mpsc::SendError<EventSubset>),
+    EventSubset(mpsc::SendError<EventSubset>),
     /// Error sending the event category
-    CategorySendError(mpsc::SendError<Category>),
+    Category(mpsc::SendError<Category>),
 }
 
 /// This structure is coded to achieve event-subsetting. Receivers in Rust are blocking. One cannot
@@ -117,9 +117,7 @@ pub enum EventSenderError<Category, EventSubset> {
 ///     assert!(ui_event_sender.send(UiEvent::CreateDirectory).is_ok());
 ///     assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 /// # }
-/// ```
-#[derive(Clone)]
-pub struct EventSender<Category: Clone, EventSubset> {
+pub struct EventSender<Category, EventSubset> {
     event_tx: mpsc::Sender<EventSubset>,
     event_category: Category,
     event_category_tx: mpsc::Sender<Category>,
@@ -142,13 +140,27 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category
     /// Fire an allowed event/signal to the observer.
     pub fn send(&self, event: EventSubset) -> Result<(), EventSenderError<Category, EventSubset>> {
         if let Err(error) = self.event_tx.send(event) {
-            return Err(EventSenderError::EventSendError(error));
+            return Err(EventSenderError::EventSubset(error));
         }
         if let Err(error) = self.event_category_tx.send(self.event_category.clone()) {
-            return Err(EventSenderError::CategorySendError(error));
+            return Err(EventSenderError::Category(error));
         }
 
         Ok(())
+    }
+}
+
+// (Spandan) Need to manually implement this because the default derived one seems faulty in that
+// it requires EventSubset to be clonable even though mpsc::Sender<EventSubset> does
+// not require EventSubset to be clonable for itself being cloned.
+impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> Clone for EventSender<Category,
+                                                                                  EventSubset> {
+    fn clone(&self) -> EventSender<Category, EventSubset> {
+        EventSender {
+            event_tx: self.event_tx.clone(),
+            event_category: self.event_category.clone(),
+            event_category_tx: self.event_category_tx.clone(),
+        }
     }
 }
 
@@ -156,9 +168,9 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category
 #[derive(Clone, Debug)]
 pub enum MaidSafeEventCategory {
     /// Used by Crust to indicate a Crust Event has been fired
-    CrustEvent,
+    Crust,
     /// Used by Routing to indicate a Routing Event has been fired
-    RoutingEvent,
+    Routing,
 }
 
 /// Observer that Crust (and users of Routing if required) must allow to be registered
@@ -171,6 +183,9 @@ mod test {
 
     #[test]
     fn marshall_multiple_events() {
+        type UiEventSender = EventSender<EventCategory, UiEvent>;
+        type NetworkEventSender = EventSender<EventCategory, NetworkEvent>;
+
         const TOKEN: u32 = 9876;
         const DIR_NAME: &'static str = "NewDirectory";
 
@@ -196,9 +211,6 @@ mod test {
         let (category_tx, category_rx) = mpsc::channel();
         let (network_event_tx, network_event_rx) = mpsc::channel();
 
-        type UiEventSender = EventSender<EventCategory, UiEvent>;
-        type NetworkEventSender = EventSender<EventCategory, NetworkEvent>;
-
         let ui_event_sender = UiEventSender::new(ui_event_tx,
                                                  EventCategory::UserInterface,
                                                  category_tx.clone());
@@ -212,12 +224,10 @@ mod test {
                 match it {
                     EventCategory::Network => {
                         if let Ok(network_event) = network_event_rx.try_recv() {
-                            match network_event {
-                                NetworkEvent::Connected(token) => assert_eq!(token, TOKEN),
-                                _ => {
-                                    panic!("Shouldn't have received this event: {:?}",
-                                           network_event)
-                                }
+                            if let NetworkEvent::Connected(token) = network_event {
+                                assert_eq!(token, TOKEN)
+                            } else {
+                                panic!("Shouldn't have received this event: {:?}", network_event)
                             }
                         }
                     }
@@ -244,16 +254,15 @@ mod test {
         assert!(ui_event_sender.send(UiEvent::Terminate).is_err());
         assert!(nw_event_sender.send(NetworkEvent::Disconnected).is_err());
 
-        match unwrap_option!(ui_event_sender.send(UiEvent::CreateDirectory(DIR_NAME.to_string()))
-                                            .err(),
-                             "Return should have evaluated to an error.") {
-            EventSenderError::EventSendError(send_err) => {
-                match send_err.0 {
-                    UiEvent::CreateDirectory(dir_name) => assert_eq!(dir_name, DIR_NAME),
-                    _ => panic!("Expected a different event !"),
-                }
+        let result = ui_event_sender.send(UiEvent::CreateDirectory(DIR_NAME.to_owned())).err();
+        if let EventSenderError::EventSubset(send_err) = unwrap_option!(result, "") {
+            if let UiEvent::CreateDirectory(dir_name) = send_err.0 {
+                assert_eq!(dir_name, DIR_NAME)
+            } else {
+                panic!("Expected a different event !")
             }
-            _ => panic!("Expected a different error !"),
+        } else {
+            panic!("Expected a different error !")
         }
     }
 }
