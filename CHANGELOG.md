@@ -1,9 +1,13 @@
 # MaidSafe Utilities - Change Log
 
+## [0.2.0]
+- Clippy fixes including renaming some public enum variants.
+- Formatting and style fixes.
+- Limited length of filename in log output.
+
 ## [0.1.5]
 - to_string() -> to_owned()
 - str + str -> str.push(str)
-
 
 ## [0.1.4]
 - Added serialisation module to encode and decode types using Cbor.
