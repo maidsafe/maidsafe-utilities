@@ -18,15 +18,25 @@
 use cbor::{Encoder, Decoder};
 use rustc_serialize::{Encodable, Decodable};
 
-/// Wrapper for Serialisation Errors. This is present because cbor code paths don't always return a
-/// Result - they return an Option too.
-#[derive(Debug)]
-pub enum SerialisationError {
-    /// Encapsulated Cbor Error
-    CborError(::cbor::CborError),
-    /// To convert Option to a Result when deserialisation is unsuccessful and returns an
-    /// `Option::None`
-    UnsuccessfulDecode,
+quick_error! {
+    /// Wrapper for Serialisation Errors. This is present because cbor code paths don't always return a
+    /// Result - they return an Option too.
+    #[derive(Debug)]
+    pub enum SerialisationError {
+        /// Encapsulated Cbor Error
+        CborError(err: ::cbor::CborError) {
+            description("Cbor error")
+            display("Cbor error: {}", err)
+            cause(err)
+            from()
+        }
+        /// To convert Option to a Result when deserialisation is unsuccessful and returns an
+        /// `Option::None`
+        UnsuccessfulDecode {
+            description("Unsuccessful decode.")
+            display("Unsuccessful decode. `deserialise` returned `None`")
+        }
+    }
 }
 
 /// Function to serialise an Encodable type
@@ -44,12 +54,6 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
 {
     let mut decoder = Decoder::from_bytes(data);
     Ok(try!(try!(decoder.decode().next().ok_or(SerialisationError::UnsuccessfulDecode))))
-}
-
-impl From<::cbor::CborError> for SerialisationError {
-    fn from(orig_error: ::cbor::CborError) -> Self {
-        SerialisationError::CborError(orig_error)
-    }
 }
 
 #[cfg(test)]
