@@ -51,6 +51,7 @@ pub enum EventSenderError<Category, EventSubset> {
 /// #Examples
 ///
 /// ```
+/// # #![allow(dead_code)]
 /// # #[macro_use]
 /// # extern crate maidsafe_utilities;
 /// # fn main() {
