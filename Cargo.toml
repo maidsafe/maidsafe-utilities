@@ -7,13 +7,13 @@ license = "GPL-3.0"
 name = "maidsafe_utilities"
 readme = "README.md"
 repository = "https://github.com/maidsafe/maidsafe_utilities"
-version = "0.2.1"
+version = "0.3.0"
 
 [dependencies]
 cbor = "~0.3.16"
-clippy = {version = "~0.0.42", optional = true}
+clippy = {version = "~0.0.44", optional = true}
 env_logger = "~0.3.2"
 log = "~0.3.5"
 rustc-serialize = "~0.3.18"
 time = "~0.1.34"
-quick-error = "0.2.2"
+quick-error = "1.0.0"
