@@ -1,5 +1,11 @@
 # MaidSafe Utilities - Change Log
 
+## [0.3.0]
+- Added new function to allow logging to file.
+
+## [0.2.1]
+- Used quick-error for SerialisationError.
+
 ## [0.2.0]
 - Clippy fixes including renaming some public enum variants.
 - Formatting and style fixes.
