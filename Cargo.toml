@@ -10,7 +10,7 @@ repository = "https://github.com/maidsafe/maidsafe_utilities"
 version = "0.3.0"
 
 [dependencies]
-cbor = "~0.3.16"
+bincode = "~0.4.1"
 clippy = {version = "~0.0.44", optional = true}
 env_logger = "~0.3.2"
 log = "~0.3.5"
