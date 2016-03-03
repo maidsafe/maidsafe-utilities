@@ -15,45 +15,44 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use cbor::{Encoder, Decoder};
+use bincode::SizeLimit;
+use bincode::rustc_serialize::{decode, DecodingError, encode, EncodingError};
 use rustc_serialize::{Encodable, Decodable};
 
 quick_error! {
-    /// Wrapper for Serialisation Errors. This is present because cbor code paths don't always return a
-    /// Result - they return an Option too.
+    /// Serialisation error.
     #[derive(Debug)]
     pub enum SerialisationError {
-        /// Encapsulated Cbor Error
-        CborError(err: ::cbor::CborError) {
-            description("Cbor error")
-            display("Cbor error: {}", err)
+        /// Error during serialisation (encoding).
+        SerialiseError(err: EncodingError) {
+            description("Serialise error")
+            display("Serialise error: {}", err)
             cause(err)
             from()
         }
-        /// To convert Option to a Result when deserialisation is unsuccessful and returns an
-        /// `Option::None`
-        UnsuccessfulDecode {
-            description("Unsuccessful decode.")
-            display("Unsuccessful decode. `deserialise` returned `None`")
+
+        /// Error during deserialisation (decoding).
+        DeserialiseError(err: DecodingError) {
+            description("Deserialise error")
+            display("Deserialise error: {}", err)
+            cause(err)
+            from()
         }
     }
 }
 
-/// Function to serialise an Encodable type
+/// Serialise an Encodable type
 pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError>
     where T: Encodable
 {
-    let mut encoder = Encoder::from_memory();
-    try!(encoder.encode(&[data]));
-    Ok(encoder.into_bytes())
+    encode(data, SizeLimit::Infinite).map_err(From::from)
 }
 
-/// Function to deserialise a Decodable type
+/// Deserialise a Decodable type
 pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
     where T: Decodable
 {
-    let mut decoder = Decoder::from_bytes(data);
-    Ok(try!(try!(decoder.decode().next().ok_or(SerialisationError::UnsuccessfulDecode))))
+    decode(data).map_err(From::from)
 }
 
 #[cfg(test)]
