@@ -16,13 +16,15 @@
 // relating to use of the SAFE Network Software.
 
 use bincode::SizeLimit;
-use bincode::rustc_serialize::{decode, DecodingError, encode, EncodingError};
+use bincode::rustc_serialize::{decode, decode_from, DecodingError, encode, encode_into,
+                               EncodingError};
 use rustc_serialize::{Encodable, Decodable};
+use std::io::{Read, Write};
 
 quick_error! {
     /// Serialization error.
     #[derive(Debug)]
-    pub enum SerialisationError {
+    pub enum SerializationError {
         /// Error during serialization (encoding).
         SerializeError(err: EncodingError) {
             description("Serialize error")
@@ -41,18 +43,31 @@ quick_error! {
     }
 }
 
-/// Function to serialise an Encodable type
-pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError>
+/// Serialise an Encodable type
+pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerializationError>
     where T: Encodable
 {
     encode(data, SizeLimit::Infinite).map_err(From::from)
 }
 
-/// Function to deserialise a Decodable type
-pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
+/// Serialize directly to a Writ
+pub fn serialize_into<T: Encodable, W: Write>(data: &T,
+                                              writer: &mut W)
+                                              -> Result<(), SerializationError> {
+    encode_into(data, writer, SizeLimit::Infinite).map_err(From::from)
+}
+
+
+/// Deserialise a Decodable type
+pub fn deserialise<T>(data: &[u8]) -> Result<T, SerializationError>
     where T: Decodable
 {
-    decode::<T>(data).map_err(From::from)
+    decode(data).map_err(From::from)
+}
+
+/// Deserialize directly from a Read
+pub fn deserialize_from<R: Read, T: Decodable>(reader: &mut R) -> Result<T, SerializationError> {
+    decode_from(reader, SizeLimit::Infinite).map_err(From::from)
 }
 
 #[cfg(test)]
