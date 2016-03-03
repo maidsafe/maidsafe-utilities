@@ -22,21 +22,21 @@ use rustc_serialize::{Encodable, Decodable};
 use std::io::{Read, Write};
 
 quick_error! {
-    /// Serialization error.
+    /// Serialisation error.
     #[derive(Debug)]
-    pub enum SerializationError {
-        /// Error during serialization (encoding).
-        SerializeError(err: EncodingError) {
-            description("Serialize error")
-            display("Serialize error: {}", err)
+    pub enum SerialisationError {
+        /// Error during serialisation (encoding).
+        SerialiseError(err: EncodingError) {
+            description("Serialise error")
+            display("Serialise error: {}", err)
             cause(err)
             from()
         }
 
-        /// Error during deserialization (decoding).
-        DeserializeError(err: DecodingError) {
-            description("Deserialize error")
-            display("Deserialize error: {}", err)
+        /// Error during deserialisation (decoding).
+        DeserialiseError(err: DecodingError) {
+            description("Deserialise error")
+            display("Deserialise error: {}", err)
             cause(err)
             from()
         }
@@ -44,29 +44,29 @@ quick_error! {
 }
 
 /// Serialise an Encodable type
-pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerializationError>
+pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError>
     where T: Encodable
 {
     encode(data, SizeLimit::Infinite).map_err(From::from)
 }
 
-/// Serialize directly to a Writ
-pub fn serialize_into<T: Encodable, W: Write>(data: &T,
+/// Serialise directly to a Writ
+pub fn serialise_into<T: Encodable, W: Write>(data: &T,
                                               writer: &mut W)
-                                              -> Result<(), SerializationError> {
+                                              -> Result<(), SerialisationError> {
     encode_into(data, writer, SizeLimit::Infinite).map_err(From::from)
 }
 
 
 /// Deserialise a Decodable type
-pub fn deserialise<T>(data: &[u8]) -> Result<T, SerializationError>
+pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
     where T: Decodable
 {
     decode(data).map_err(From::from)
 }
 
-/// Deserialize directly from a Read
-pub fn deserialize_from<R: Read, T: Decodable>(reader: &mut R) -> Result<T, SerializationError> {
+/// Deserialise directly from a Read
+pub fn deserialise_from<R: Read, T: Decodable>(reader: &mut R) -> Result<T, SerialisationError> {
     decode_from(reader, SizeLimit::Infinite).map_err(From::from)
 }
 
