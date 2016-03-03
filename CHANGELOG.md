@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.3.1]
+- Disabled Clippy warning.
+
 ## [0.3.0]
 - Added new function to allow logging to file.
 
