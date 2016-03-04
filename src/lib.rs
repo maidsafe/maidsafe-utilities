@@ -43,10 +43,10 @@
 #![cfg_attr(feature="clippy", deny(clippy, clippy_pedantic))]
 #![cfg_attr(feature="clippy", allow(use_debug))]
 
-extern crate time;
-extern crate cbor;
+extern crate bincode;
 extern crate env_logger;
 extern crate rustc_serialize;
+extern crate time;
 #[macro_use]
 extern crate log as logger;
 
