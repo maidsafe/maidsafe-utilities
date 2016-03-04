@@ -16,8 +16,10 @@
 // relating to use of the SAFE Network Software.
 
 use bincode::SizeLimit;
-use bincode::rustc_serialize::{decode, DecodingError, encode, EncodingError};
+use bincode::rustc_serialize::{decode, decode_from, DecodingError, encode,
+                               encode_into, EncodingError};
 use rustc_serialize::{Encodable, Decodable};
+use std::io::{Read, Write};
 
 quick_error! {
     /// Serialisation error.
@@ -53,6 +55,18 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
     where T: Decodable
 {
     decode(data).map_err(From::from)
+}
+
+/// Serialise an Encodable type directly into a Write.
+pub fn serialise_into<T: Encodable, W: Write>(data: &T,
+                                              write: &mut W)
+                                              -> Result<(), SerialisationError> {
+    encode_into(data, write, SizeLimit::Infinite).map_err(From::from)
+}
+
+/// Deserialise a Decodable type directly from a Read
+pub fn deserialise_from<R: Read, T: Decodable>(read: &mut R) -> Result<T, SerialisationError> {
+    decode_from(read, SizeLimit::Infinite).map_err(From::from)
 }
 
 #[cfg(test)]
