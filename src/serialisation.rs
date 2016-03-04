@@ -24,7 +24,7 @@ quick_error! {
     #[derive(Debug)]
     pub enum SerialisationError {
         /// Error during serialisation (encoding).
-        SerialiseError(err: EncodingError) {
+        Serialise(err: EncodingError) {
             description("Serialise error")
             display("Serialise error: {}", err)
             cause(err)
@@ -32,7 +32,7 @@ quick_error! {
         }
 
         /// Error during deserialisation (decoding).
-        DeserialiseError(err: DecodingError) {
+        Deserialise(err: DecodingError) {
             description("Deserialise error")
             display("Deserialise error: {}", err)
             cause(err)
