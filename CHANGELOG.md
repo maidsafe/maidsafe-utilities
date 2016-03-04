@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.4.0]
+- Changed from using CBOR to Bincode.
+- Disabled Clippy warning.
+
 ## [0.3.0]
 - Added new function to allow logging to file.
 
