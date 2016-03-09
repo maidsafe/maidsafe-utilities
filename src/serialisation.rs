@@ -79,9 +79,9 @@ mod test {
                              vec![-1i64, 888, -8765],
                              "Some-String".to_owned());
 
-        let serialised_data = unwrap_result!(serialise(&original_data));
+        let serialised_data = unwrap!(serialise(&original_data));
         let deserialised_data: (Vec<u8>, Vec<i64>, String) =
-            unwrap_result!(deserialise(&serialised_data));
+            unwrap!(deserialise(&serialised_data));
         assert_eq!(original_data, deserialised_data);
     }
 }

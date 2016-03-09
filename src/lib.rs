@@ -49,12 +49,12 @@ extern crate rustc_serialize;
 extern crate time;
 #[macro_use]
 extern crate log as logger;
+#[macro_use]
+extern crate unwrap;
 
 #[allow(unused_extern_crates)] // Needed because the crate is only used for macros
 #[macro_use]
 extern crate quick_error;
-
-#[macro_use] mod unwrap;
 
 /// Utilities related to threading.
 #[macro_use]pub mod thread;

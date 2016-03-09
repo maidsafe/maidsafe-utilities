@@ -32,20 +32,22 @@ impl RaiiThreadJoiner {
 
 impl Drop for RaiiThreadJoiner {
     fn drop(&mut self) {
-        let joiner = unwrap_option!(self.joiner.take(),
-                                    "Programming error: please report this as a bug.");
-        unwrap_result!(joiner.join());
+        let joiner = unwrap!(self.joiner.take(),
+                             "drop() on empty RaiiThreadJoiner: please report this as a bug!");
+        unwrap!(joiner.join());
     }
 }
 
 /// This macro is intended to be used in all cases where we want to spawn a new thread of execution
 /// and if that is not possible then panic out.
 ///
-/// #Examples
+/// # Examples
 ///
 /// ```
 /// # #[macro_use]
 /// # extern crate maidsafe_utilities;
+/// # #[macro_use]
+/// # extern crate unwrap;
 /// # fn main() {
 /// let _ = thread!("DaemonThread", move || {
 ///     std::thread::sleep(std::time::Duration::from_millis(10));
@@ -61,8 +63,8 @@ impl Drop for RaiiThreadJoiner {
 #[macro_export]
 macro_rules! thread {
     ($thread_name:expr, $entry_point:expr) => {
-        unwrap_result!(::std::thread::Builder::new().name($thread_name.to_owned())
-                                                    .spawn($entry_point))
+        unwrap!(::std::thread::Builder::new().name($thread_name.to_owned())
+                                             .spawn($entry_point))
     }
 }
 

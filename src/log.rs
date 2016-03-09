@@ -46,6 +46,8 @@
 //! extern crate log;
 //! #[macro_use]
 //! extern crate maidsafe_utilities;
+//! #[macro_use]
+//! extern crate unwrap;
 //! use std::thread;
 //! use maidsafe_utilities::thread::RaiiThreadJoiner;
 //!
@@ -123,12 +125,12 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Res
                 let format = move |record: &LogRecord| {
                     let mut log_message = format_record(show_thread_name, record);
                     log_message.push('\n');
-                    let mut logfile = unwrap_result!(OpenOptions::new()
+                    let mut logfile = unwrap!(OpenOptions::new()
                                                          .write(true)
                                                          .create(true)
                                                          .append(true)
                                                          .open(&filepath));
-                    unwrap_result!(logfile.write_all(&log_message.clone().into_bytes()[..]));
+                    unwrap!(logfile.write_all(&log_message.clone().into_bytes()[..]));
                     let _ = log_message.pop();
                     log_message
                 };
