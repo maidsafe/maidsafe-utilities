@@ -54,6 +54,8 @@ pub enum EventSenderError<Category, EventSubset> {
 /// # #![allow(dead_code)]
 /// # #[macro_use]
 /// # extern crate maidsafe_utilities;
+/// # #[macro_use]
+/// # extern crate unwrap;
 /// # fn main() {
 ///     #[derive(Debug, Clone)]
 ///     enum EventCategory {
@@ -256,7 +258,7 @@ mod test {
         assert!(nw_event_sender.send(NetworkEvent::Disconnected).is_err());
 
         let result = ui_event_sender.send(UiEvent::CreateDirectory(DIR_NAME.to_owned())).err();
-        if let EventSenderError::EventSubset(send_err) = unwrap_option!(result, "") {
+        if let EventSenderError::EventSubset(send_err) = unwrap!(result) {
             if let UiEvent::CreateDirectory(dir_name) = send_err.0 {
                 assert_eq!(dir_name, DIR_NAME)
             } else {
