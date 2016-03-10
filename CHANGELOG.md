@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.4.1]
+- Use bincode serialisation size limits
+
 ## [0.4.0]
 - Changed from using CBOR to Bincode.
 - Disabled Clippy warning.
