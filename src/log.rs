@@ -15,7 +15,6 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-//!
 //! These functions can initialise the env_logger for output to stderr only, or to a file and
 //! stderr.
 //!
@@ -66,29 +65,52 @@
 //! }
 //! ```
 
-#![allow(unused)]
-use std::env;
-use std::fs::{self, File, OpenOptions};
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::thread;
+use log4rs;
+use log4rs::appender::{ConsoleAppender, FileAppender};
+use log4rs::config::{Appender, Config, Root};
+use log4rs::pattern::PatternLayout;
+use log4rs::toml::Creator;
 
-use env_logger::LogBuilder;
-use logger::{LogLevel, LogRecord};
-use time;
+use std::path::Path;
+use std::sync::{Once, ONCE_INIT};
 
-static INITIALISE_LOGGER: ::std::sync::Once = ::std::sync::ONCE_INIT;
+use async_log::{AsyncConsoleAppenderCreator, AsyncFileAppenderCreator};
+use logger::LogLevelFilter;
 
-/// Initialises the env_logger for output to stderr.
+static INITIALISE_LOGGER: Once = ONCE_INIT;
+static CONFIG_FILE: &'static str = "log.toml";
+
+/// Initialises the env_logger for output to stdout.
 ///
 /// For further details, see the [module docs](index.html).
 pub fn init(show_thread_name: bool) {
     INITIALISE_LOGGER.call_once(|| {
-        build(move |record: &LogRecord| format_record(show_thread_name, record));
+        let config_path = Path::new(CONFIG_FILE);
+
+        if config_path.is_file() {
+            let mut creator = Creator::default();
+            creator.add_appender("async_console", Box::new(AsyncConsoleAppenderCreator));
+            creator.add_appender("async_file", Box::new(AsyncFileAppenderCreator));
+
+            log4rs::init_file(config_path, creator)
+        } else {
+            let pattern = make_pattern(show_thread_name);
+
+            let appender = ConsoleAppender::builder().pattern(pattern).build();
+            let appender = Appender::builder("console".to_owned(), Box::new(appender)).build();
+
+            let root = Root::builder(LogLevelFilter::Trace).appender("console".to_owned()).build();
+            let config = Config::builder(root).appender(appender).build().unwrap();
+
+            // TODO: add loggers by parsing RUST_LOG env variable.
+
+            log4rs::init_config(config)
+        }
+        .expect("failed to initialize logging");
     });
 }
 
-/// Initialises the env_logger for output to a file and to stderr.
+/// Initialises the env_logger for output to a file and to stdout.
 ///
 /// This function will create the logfile at `file_path` if it does not exist, and will truncate it
 /// if it does.  For further details, see the [module docs](index.html).
@@ -104,93 +126,60 @@ pub fn init(show_thread_name: bool) {
 ///     assert!(maidsafe_utilities::log::init_to_file(true, "target/test.log").is_ok());
 ///     error!("An error!");
 ///     assert_eq!(maidsafe_utilities::log::init_to_file(true, "target/test.log").unwrap_err(),
-///         "Logger already initialised.".to_owned());
+///         "Logger already initialised".to_owned());
 ///
 ///     // E 22:38:05.499016 <main> [example:main.rs:7] An error!
 /// }
 /// ```
 pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Result<(), String> {
-    let mut result = Err("Logger already initialised.".to_owned());
-    let filepath: PathBuf = file_path.as_ref().to_owned();
+    let mut result = Err("Logger already initialised".to_owned());
+
     INITIALISE_LOGGER.call_once(|| {
-        // Check the file can be created in the initialisation phase rather than waiting until the
-        // first call to a logging macro.  If the file can't be created, fall back to stderr logging
-        // only and return an `Err`.
-        let _ = fs::remove_file(&filepath);
-        match File::create(&filepath) {
-            Ok(_) => {
-                result = Ok(());
-                let format = move |record: &LogRecord| {
-                    let mut log_message = format_record(show_thread_name, record);
-                    log_message.push('\n');
-                    let mut logfile = unwrap_result!(OpenOptions::new()
-                                                         .write(true)
-                                                         .create(true)
-                                                         .append(true)
-                                                         .open(&filepath));
-                    unwrap_result!(logfile.write_all(&log_message.clone().into_bytes()[..]));
-                    let _ = log_message.pop();
-                    log_message
-                };
-                build(format);
-            }
+        let file_appender = FileAppender::builder(file_path)
+                                .pattern(make_pattern(show_thread_name))
+                                .append(false)
+                                .build();
+        let file_appender = match file_appender {
+            Ok(appender) => appender,
             Err(error) => {
-                result = Err(format!("Failed to create logfile at {} - {}",
-                                     filepath.display(),
-                                     error));
-                build(move |record: &LogRecord| format_record(show_thread_name, record));
+                result = Err(format!("{}", error));
+                return;
             }
         };
+        let file_appender = Appender::builder("file".to_owned(), Box::new(file_appender)).build();
+
+        let console_appender = ConsoleAppender::builder()
+                                   .pattern(make_pattern(show_thread_name))
+                                   .build();
+        let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender))
+                                   .build();
+
+        let root = Root::builder(LogLevelFilter::Trace)
+                       .appender("console".to_owned())
+                       .appender("file".to_owned())
+                       .build();
+
+        let config = Config::builder(root)
+                         .appender(console_appender)
+                         .appender(file_appender)
+                         .build()
+                         .unwrap();
+
+        // TODO: add loggers by parsing RUST_LOG env variable.
+
+        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
     });
+
     result
 }
 
-fn format_record(show_thread_name: bool, record: &LogRecord) -> String {
-    let now = time::now();
-    let mut thread_name = "".to_owned();
-    if show_thread_name {
-        thread_name = thread::current().name().unwrap_or("???").to_owned();
-        thread_name.push_str(" ");
-    }
-    let src_filename_length = record.location().file().len();
-    let src_file = if src_filename_length > 40 {
-        let mut src_file = "...".to_owned();
-        src_file.push_str(&record.location().file()[(src_filename_length - 40)..src_filename_length]);
-        src_file
+
+fn make_pattern(show_thread_name: bool) -> PatternLayout {
+    let pattern = if show_thread_name {
+        "%l %T [%M:%f:%L] %m"
     } else {
-        record.location().file().to_owned()
+        "%l [%M:%f:%L] %m"
     };
 
-    format!("{} {}.{:06} {}[{}:{}:{}] {}",
-            match record.level() {
-                LogLevel::Error => 'E',
-                LogLevel::Warn => 'W',
-                LogLevel::Info => 'I',
-                LogLevel::Debug => 'D',
-                LogLevel::Trace => 'T',
-            },
-            if let Ok(time_txt) = ::time::strftime("%T", &now) {
-                time_txt
-            } else {
-                "".to_owned()
-            },
-            now.tm_nsec / 1000,
-            thread_name,
-            record.location().module_path().splitn(2, "::").next().unwrap_or(""),
-            src_file,
-            record.location().line(),
-            record.args())
-}
-
-fn build<F: 'static>(format: F)
-    where F: Fn(&LogRecord) -> String + Sync + Send
-{
-    let mut builder = LogBuilder::new();
-    let _ = builder.format(format);
-
-    if let Ok(rust_log) = env::var("RUST_LOG") {
-        let _ = builder.parse(&rust_log);
-    }
-
-    builder.init().unwrap_or_else(|error| println!("Error initialising logger: {}", error));
+    PatternLayout::new(pattern).unwrap()
 }
