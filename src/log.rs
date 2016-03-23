@@ -70,10 +70,11 @@
 
 use log4rs;
 use log4rs::appender::{ConsoleAppender, FileAppender};
-use log4rs::config::{Appender, Config, Root};
+use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::pattern::PatternLayout;
 use log4rs::toml::Creator;
 
+use std::fmt::{self, Display, Formatter};
 use std::path::Path;
 use std::sync::{Once, ONCE_INIT};
 
@@ -103,10 +104,14 @@ pub fn init(show_thread_name: bool) {
             let appender = ConsoleAppender::builder().pattern(pattern).build();
             let appender = Appender::builder("console".to_owned(), Box::new(appender)).build();
 
-            let root = Root::builder(DEFAULT_LOG_LEVEL_FILTER).appender("console".to_owned()).build();
-            let config = Config::builder(root).appender(appender).build().unwrap();
+            let (default_level, loggers) = parse_loggers_from_env().expect("failed to parse RUST_LOG env variable");
 
-            // TODO: add loggers by parsing RUST_LOG env variable.
+            let root = Root::builder(default_level).appender("console".to_owned()).build();
+            let config = Config::builder(root)
+                            .appender(appender)
+                            .loggers(loggers)
+                            .build()
+                            .unwrap();
 
             log4rs::init_config(config)
         }
@@ -158,7 +163,15 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Res
         let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender))
                                    .build();
 
-        let root = Root::builder(DEFAULT_LOG_LEVEL_FILTER)
+        let (default_level, loggers) = match parse_loggers_from_env() {
+            Ok((level, loggers)) => (level, loggers),
+            Err(error) => {
+                result = Err(format!("{}", error));
+                return;
+            }
+        };
+
+        let root = Root::builder(default_level)
                        .appender("console".to_owned())
                        .appender("file".to_owned())
                        .build();
@@ -166,10 +179,9 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Res
         let config = Config::builder(root)
                          .appender(console_appender)
                          .appender(file_appender)
+                         .loggers(loggers)
                          .build()
                          .unwrap();
-
-        // TODO: add loggers by parsing RUST_LOG env variable.
 
         result = log4rs::init_config(config).map_err(|e| format!("{}", e))
     });
@@ -186,4 +198,106 @@ fn make_pattern(show_thread_name: bool) -> PatternLayout {
     };
 
     PatternLayout::new(pattern).unwrap()
+}
+
+#[derive(Debug)]
+struct ParseLoggerError;
+
+impl Display for ParseLoggerError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "ParseLoggerError")
+    }
+}
+
+impl From<()> for ParseLoggerError {
+    fn from(_: ()) -> Self {
+        ParseLoggerError
+    }
+}
+
+fn parse_loggers_from_env() -> Result<(LogLevelFilter, Vec<Logger>), ParseLoggerError> {
+    use std::env;
+
+    if let Ok(var) = env::var("RUST_LOG") {
+        parse_loggers(&var)
+    } else {
+        Ok((DEFAULT_LOG_LEVEL_FILTER, Vec::new()))
+    }
+}
+
+fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLoggerError> {
+    let mut loggers = Vec::new();
+    let mut default_level = DEFAULT_LOG_LEVEL_FILTER;
+
+    for logger in input.split(',').map(str::trim)
+                                  .filter(|d| !d.is_empty())
+                                  .map(parse_logger) {
+        let logger = try!(logger);
+
+        if logger.name().is_empty() {
+            default_level = logger.level();
+        } else {
+            loggers.push(logger);
+        }
+    }
+
+    Ok((default_level, loggers))
+}
+
+fn parse_logger(input: &str) -> Result<Logger, ParseLoggerError> {
+    let mut parts = input.trim().split('=');
+    let (name, level) = match (parts.next(), parts.next()) {
+        (Some(part), None) => {
+            match part.parse() {
+                Ok(part) => ("", part),
+                Err(_) => (part, LogLevelFilter::max()),
+            }
+        }
+
+        (Some(name), Some(level)) => (name, try!(level.parse())),
+        _ => return Err(ParseLoggerError),
+    };
+
+    Ok(Logger::builder(name.to_owned(), level).build())
+}
+
+#[cfg(test)]
+mod tests {
+    use ::logger::LogLevelFilter;
+    use super::parse_loggers;
+
+    #[test]
+    fn test_parse_loggers() {
+        let (level, loggers) = parse_loggers("").unwrap();
+        assert_eq!(level, LogLevelFilter::Warn);
+        assert!(loggers.is_empty());
+
+        let (level, loggers) = parse_loggers("foo").unwrap();
+        assert_eq!(level, LogLevelFilter::Warn);
+        assert_eq!(loggers.len(), 1);
+        assert_eq!(loggers[0].name(), "foo");
+        assert_eq!(loggers[0].level(), LogLevelFilter::Trace);
+
+        let (level, loggers) = parse_loggers("info").unwrap();
+        assert_eq!(level, LogLevelFilter::Info);
+        assert!(loggers.is_empty());
+
+        let (level, loggers) = parse_loggers("foo::bar=warn").unwrap();
+        assert_eq!(level, LogLevelFilter::Warn);
+        assert_eq!(loggers.len(), 1);
+        assert_eq!(loggers[0].name(), "foo::bar");
+        assert_eq!(loggers[0].level(), LogLevelFilter::Warn);
+
+        let (level, loggers) = parse_loggers("foo::bar=error,baz=debug,qux").unwrap();
+        assert_eq!(level, LogLevelFilter::Warn);
+        assert_eq!(loggers.len(), 3);
+        assert_eq!(loggers[0].name(), "foo::bar");
+        assert_eq!(loggers[0].level(), LogLevelFilter::Error);
+
+        assert_eq!(loggers[1].name(), "baz");
+        assert_eq!(loggers[1].level(), LogLevelFilter::Debug);
+
+        assert_eq!(loggers[2].name(), "qux");
+        assert_eq!(loggers[2].level(), LogLevelFilter::Trace);
+    }
 }
