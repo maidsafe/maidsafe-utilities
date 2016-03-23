@@ -15,8 +15,11 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-//! These functions can initialise the env_logger for output to stderr only, or to a file and
-//! stderr.
+//! These functions can initialise logging for output to stdout only, or to a file and
+//! stdout. For more fine-grained control, create file called `log.toml` in the root
+//! directory of the project, or in the same directory where the executable is.
+//! See http://sfackler.github.io/log4rs/doc/v0.3.3/log4rs/index.html for details
+//! about format and structure of this file.
 //!
 //! An example of a log message is:
 //!
@@ -79,6 +82,7 @@ use logger::LogLevelFilter;
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
 static CONFIG_FILE: &'static str = "log.toml";
+static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 
 /// Initialises the env_logger for output to stdout.
 ///
@@ -99,7 +103,7 @@ pub fn init(show_thread_name: bool) {
             let appender = ConsoleAppender::builder().pattern(pattern).build();
             let appender = Appender::builder("console".to_owned(), Box::new(appender)).build();
 
-            let root = Root::builder(LogLevelFilter::Trace).appender("console".to_owned()).build();
+            let root = Root::builder(DEFAULT_LOG_LEVEL_FILTER).appender("console".to_owned()).build();
             let config = Config::builder(root).appender(appender).build().unwrap();
 
             // TODO: add loggers by parsing RUST_LOG env variable.
@@ -154,7 +158,7 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Res
         let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender))
                                    .build();
 
-        let root = Root::builder(LogLevelFilter::Trace)
+        let root = Root::builder(DEFAULT_LOG_LEVEL_FILTER)
                        .appender("console".to_owned())
                        .appender("file".to_owned())
                        .build();
