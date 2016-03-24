@@ -1,0 +1,28 @@
+[appender.console]
+kind = "console"
+
+[appender.file]
+kind = "file"
+path = "main.log"
+
+[appender.async_console]
+kind = "async_console"
+
+[appender.async_file]
+kind = "async_file"
+path = "main.log"
+
+[appender.async_server]
+level = "info"
+kind = "async_server"
+server_addr = "127.0.0.1:40000"
+
+[root]
+level = "trace"
+appenders = ["console"]
+
+# Per module logging rules
+[[logger]]
+name = "foo::bar::baz"
+level = "warn"
+appenders = ["file"]
