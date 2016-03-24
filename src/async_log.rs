@@ -236,7 +236,6 @@ impl SyncWrite for File {
 impl SyncWrite for TcpStream {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
         let _ = try!(self.write_all(buf));
-        println!("Written");
         Ok(())
     }
 }
