@@ -23,6 +23,7 @@ use maidsafe_utilities::log;
 
 fn main() {
   log::init(true);
+  // let _ = log::init_to_file_async(true, "main.log", true);
 
   trace!("Hello world");
   debug!("Hello world");
