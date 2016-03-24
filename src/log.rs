@@ -78,7 +78,7 @@ use std::fmt::{self, Display, Formatter};
 use std::path::Path;
 use std::sync::{Once, ONCE_INIT};
 
-use async_log::{AsyncConsoleAppenderCreator, AsyncFileAppenderCreator};
+use async_log::{AsyncConsoleAppenderCreator, AsyncFileAppenderCreator, AsyncServerAppenderCreator};
 use logger::LogLevelFilter;
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
@@ -96,6 +96,7 @@ pub fn init(show_thread_name: bool) {
             let mut creator = Creator::default();
             creator.add_appender("async_console", Box::new(AsyncConsoleAppenderCreator));
             creator.add_appender("async_file", Box::new(AsyncFileAppenderCreator));
+            creator.add_appender("async_server", Box::new(AsyncServerAppenderCreator));
 
             log4rs::init_file(config_path, creator)
         } else {
@@ -108,10 +109,10 @@ pub fn init(show_thread_name: bool) {
 
             let root = Root::builder(default_level).appender("console".to_owned()).build();
             let config = Config::builder(root)
-                            .appender(appender)
-                            .loggers(loggers)
-                            .build()
-                            .unwrap();
+                             .appender(appender)
+                             .loggers(loggers)
+                             .build()
+                             .unwrap();
 
             log4rs::init_config(config)
         }
@@ -160,8 +161,7 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Res
         let console_appender = ConsoleAppender::builder()
                                    .pattern(make_pattern(show_thread_name))
                                    .build();
-        let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender))
-                                   .build();
+        let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
 
         let (default_level, loggers) = match parse_loggers_from_env() {
             Ok((level, loggers)) => (level, loggers),
@@ -229,9 +229,10 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
     let mut loggers = Vec::new();
     let mut default_level = DEFAULT_LOG_LEVEL_FILTER;
 
-    for logger in input.split(',').map(str::trim)
-                                  .filter(|d| !d.is_empty())
-                                  .map(parse_logger) {
+    for logger in input.split(',')
+                       .map(str::trim)
+                       .filter(|d| !d.is_empty())
+                       .map(parse_logger) {
         let logger = try!(logger);
 
         if logger.name().is_empty() {
@@ -263,7 +264,7 @@ fn parse_logger(input: &str) -> Result<Logger, ParseLoggerError> {
 
 #[cfg(test)]
 mod tests {
-    use ::logger::LogLevelFilter;
+    use logger::LogLevelFilter;
     use super::parse_loggers;
 
     #[test]

@@ -28,6 +28,9 @@ use std::io::{self, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
+use std::net::{SocketAddr, TcpStream};
+use std::str::FromStr;
+
 use toml::{Table, Value};
 
 /// Appender that writes to the stdout asynchronously.
@@ -61,7 +64,7 @@ impl AsyncFileAppender {
         AsyncFileAppenderBuilder {
             path: path.as_ref().to_path_buf(),
             pattern: PatternLayout::default(),
-            append: true
+            append: true,
         }
     }
 }
@@ -90,10 +93,11 @@ impl AsyncFileAppenderBuilder {
     }
 
     pub fn build(self) -> io::Result<AsyncAppender> {
-        let file = try!(OpenOptions::new().write(true)
-                                          .append(self.append)
-                                          .create(true)
-                                          .open(self.path));
+        let file = try!(OpenOptions::new()
+                            .write(true)
+                            .append(self.append)
+                            .create(true)
+                            .open(self.path));
 
         Ok(AsyncAppender::new(file, self.pattern))
     }
@@ -116,30 +120,47 @@ impl CreateAppender for AsyncFileAppenderCreator {
     fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
         let path = match config.remove("path") {
             Some(Value::String(path)) => path,
-            Some(_) => return Err(Box::new(ConfigError("`path` must be a string".to_string()))),
-            None => return Err(Box::new(ConfigError("`path` is required".to_string()))),
+            Some(_) => return Err(Box::new(ConfigError("`path` must be a string".to_owned()))),
+            None => return Err(Box::new(ConfigError("`path` is required".to_owned()))),
         };
 
         let append = match config.remove("append") {
             Some(Value::Boolean(append)) => append,
-            Some(_) => return Err(Box::new(ConfigError("`append` must be a bool".to_string()))),
+            Some(_) => return Err(Box::new(ConfigError("`append` must be a bool".to_owned()))),
             None => true,
         };
 
         let pattern = try!(parse_pattern(&mut config));
         let appender = try!(AsyncFileAppender::builder(path)
-                                              .pattern(pattern)
-                                              .append(append)
-                                              .build());
+                                .pattern(pattern)
+                                .append(append)
+                                .build());
 
         Ok(Box::new(appender))
+    }
+}
+
+/// Creator for AsyncServerAppender
+pub struct AsyncServerAppenderCreator;
+
+impl CreateAppender for AsyncServerAppenderCreator {
+    fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
+        let server_addr = match config.remove("server_addr") {
+            Some(Value::String(addr)) => try!(SocketAddr::from_str(&addr[..])),
+            Some(_) => return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned()))),
+            None => return Err(Box::new(ConfigError("`server_addr` is required".to_owned()))),
+        };
+        let pattern = try!(parse_pattern(&mut config));
+
+        let stream = try!(TcpStream::connect(server_addr));
+        Ok(Box::new(AsyncAppender::new(stream, pattern)))
     }
 }
 
 fn parse_pattern(config: &mut Table) -> Result<PatternLayout, Box<Error>> {
     match config.remove("pattern") {
         Some(Value::String(pattern)) => Ok(try!(PatternLayout::new(&pattern))),
-        Some(_) => return Err(Box::new(ConfigError("`pattern` must be a string".to_string()))),
+        Some(_) => return Err(Box::new(ConfigError("`pattern` must be a string".to_owned()))),
         None => Ok(PatternLayout::default()),
     }
 }
@@ -192,23 +213,30 @@ impl Append for AsyncAppender {
 }
 
 trait SyncWrite {
-  fn sync_write(&mut self, buf: &[u8]) -> io::Result<()>;
+    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()>;
 }
 
 impl SyncWrite for Stdout {
-  fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
-    let mut out = self.lock();
-    try!(out.write_all(buf));
-    try!(out.flush());
-    Ok(())
-  }
+    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
+        let mut out = self.lock();
+        try!(out.write_all(buf));
+        try!(out.flush());
+        Ok(())
+    }
 }
 
 impl SyncWrite for File {
-  fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
-    try!(self.write_all(buf));
-    try!(self.flush());
-    Ok(())
-  }
+    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
+        try!(self.write_all(buf));
+        try!(self.flush());
+        Ok(())
+    }
 }
 
+impl SyncWrite for TcpStream {
+    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
+        let _ = try!(self.write_all(buf));
+        println!("Written");
+        Ok(())
+    }
+}
