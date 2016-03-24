@@ -73,7 +73,7 @@ mod test {
     use super::*;
     use std::thread;
     use std::time::Duration;
-    use time::SteadyTime;
+    use self::time::SteadyTime;
 
     #[test]
     fn raii_thread_joiner() {
