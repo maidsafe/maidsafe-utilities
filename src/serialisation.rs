@@ -16,8 +16,7 @@
 // relating to use of the SAFE Network Software.
 
 use bincode::SizeLimit;
-use bincode::rustc_serialize::{decode_from, DecodingError, encode,
-                               encode_into, EncodingError};
+use bincode::rustc_serialize::{decode_from, DecodingError, encode, encode_into, EncodingError};
 use rustc_serialize::{Encodable, Decodable};
 use std::io::{Read, Write, Cursor};
 
@@ -59,9 +58,7 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
 }
 
 /// Serialise an Encodable type directly into a Write.
-pub fn serialise_into<T: Encodable, W: Write>(data: &T,
-                                              write: &mut W)
-                                              -> Result<(), SerialisationError> {
+pub fn serialise_into<T: Encodable, W: Write>(data: &T, write: &mut W) -> Result<(), SerialisationError> {
     encode_into(data, write, SizeLimit::Bounded(1 << 21)).map_err(From::from)
 }
 
@@ -81,8 +78,7 @@ mod test {
                              "Some-String".to_owned());
 
         let serialised_data = unwrap_result!(serialise(&original_data));
-        let deserialised_data: (Vec<u8>, Vec<i64>, String) =
-            unwrap_result!(deserialise(&serialised_data));
+        let deserialised_data: (Vec<u8>, Vec<i64>, String) = unwrap_result!(deserialise(&serialised_data));
         assert_eq!(original_data, deserialised_data);
     }
 }

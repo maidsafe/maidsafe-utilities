@@ -154,8 +154,7 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category
 // (Spandan) Need to manually implement this because the default derived one seems faulty in that
 // it requires EventSubset to be clonable even though mpsc::Sender<EventSubset> does
 // not require EventSubset to be clonable for itself being cloned.
-impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> Clone for EventSender<Category,
-                                                                                  EventSubset> {
+impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> Clone for EventSender<Category, EventSubset> {
     fn clone(&self) -> EventSender<Category, EventSubset> {
         EventSender {
             event_tx: self.event_tx.clone(),
@@ -216,9 +215,7 @@ mod test {
                                                  EventCategory::UserInterface,
                                                  category_tx.clone());
 
-        let nw_event_sender = NetworkEventSender::new(network_event_tx,
-                                                      EventCategory::Network,
-                                                      category_tx);
+        let nw_event_sender = NetworkEventSender::new(network_event_tx, EventCategory::Network, category_tx);
 
         let joiner = thread!("EventListenerThread", move || {
             for it in category_rx.iter() {

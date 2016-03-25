@@ -31,6 +31,8 @@ use std::thread;
 use std::net::{SocketAddr, TcpStream};
 use std::str::FromStr;
 
+use regex::Regex;
+
 use toml::{Table, Value};
 
 /// Message terminator for streaming to Log Servers. Servers must look out for this sequence which
@@ -190,6 +192,7 @@ impl Display for ConfigError {
 pub struct AsyncAppender {
     pattern: PatternLayout,
     sender: Sender<Vec<u8>>,
+    regex: Regex,
 }
 
 impl AsyncAppender {
@@ -207,6 +210,7 @@ impl AsyncAppender {
         AsyncAppender {
             pattern: pattern,
             sender: sender,
+            regex: unwrap_result!(Regex::new(r"##.+/(.{1,})##")),
         }
     }
 }
@@ -215,6 +219,15 @@ impl Append for AsyncAppender {
     fn append(&mut self, record: &LogRecord) -> Result<(), Box<Error>> {
         let mut message = Vec::new();
         try!(self.pattern.append(&mut message, record));
+        let mut str_msg = try!(String::from_utf8(message));
+        let str_msg_cloned = str_msg.clone();
+        if let Some(file_capture) = self.regex.captures(&str_msg_cloned) {
+            if let Some(file_name) = file_capture.at(1).map(|slice| slice.to_owned()) {
+                str_msg = self.regex.replace(&str_msg[..], &file_name[..]);
+            }
+        }
+
+        message = str_msg.into_bytes();
         try!(self.sender.send(message));
         Ok(())
     }
