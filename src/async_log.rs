@@ -27,9 +27,9 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Sender};
-use std::thread;
 use std::net::{SocketAddr, TcpStream};
 use std::str::FromStr;
+use thread::RaiiThreadJoiner;
 
 use regex::Regex;
 
@@ -189,47 +189,65 @@ impl Display for ConfigError {
     }
 }
 
+enum AsyncEvent {
+    Log(Vec<u8>),
+    Terminate,
+}
+
 pub struct AsyncAppender {
     pattern: PatternLayout,
-    sender: Sender<Vec<u8>>,
-    regex: Regex,
+    tx: Sender<AsyncEvent>,
+    _raii_joiner: RaiiThreadJoiner,
 }
 
 impl AsyncAppender {
     /// Construct an AsyncAppender
     pub fn new<W: 'static + SyncWrite + Send>(mut writer: W, pattern: PatternLayout) -> Self {
-        let (sender, receiver) = mpsc::channel::<Vec<u8>>();
+        let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
-        let _ = thread::spawn(move || {
-            for message in receiver.iter() {
-                // TODO: how should we handle errors here?
-                let _ = writer.sync_write(&message);
+        let joiner = thread!("AsyncLog", move || {
+            let re = unwrap_result!(Regex::new(r"##.+/(.{1,})##"));
+
+            for event in rx.iter() {
+                match event {
+                    AsyncEvent::Log(mut msg) => {
+                        if let Ok(mut str_msg) = String::from_utf8(msg) {
+                            let str_msg_cloned = str_msg.clone();
+                            if let Some(file_name_capture) = re.captures(&str_msg_cloned) {
+                                if let Some(file_name) = file_name_capture.at(1) {
+                                    str_msg = re.replace(&str_msg[..], file_name);
+                                }
+                            }
+
+                            msg = str_msg.into_bytes();
+                            let _ = writer.sync_write(&msg);
+                        }
+                    }
+                    AsyncEvent::Terminate => break,
+                }
             }
         });
 
         AsyncAppender {
             pattern: pattern,
-            sender: sender,
-            regex: unwrap_result!(Regex::new(r"##.+/(.{1,})##")),
+            tx: tx,
+            _raii_joiner: RaiiThreadJoiner::new(joiner),
         }
     }
 }
 
 impl Append for AsyncAppender {
     fn append(&mut self, record: &LogRecord) -> Result<(), Box<Error>> {
-        let mut message = Vec::new();
-        try!(self.pattern.append(&mut message, record));
-        let mut str_msg = try!(String::from_utf8(message));
-        let str_msg_cloned = str_msg.clone();
-        if let Some(file_capture) = self.regex.captures(&str_msg_cloned) {
-            if let Some(file_name) = file_capture.at(1).map(|slice| slice.to_owned()) {
-                str_msg = self.regex.replace(&str_msg[..], &file_name[..]);
-            }
-        }
-
-        message = str_msg.into_bytes();
-        try!(self.sender.send(message));
+        let mut msg = Vec::new();
+        try!(self.pattern.append(&mut msg, record));
+        try!(self.tx.send(AsyncEvent::Log(msg)));
         Ok(())
+    }
+}
+
+impl Drop for AsyncAppender {
+    fn drop(&mut self) {
+        let _ = self.tx.send(AsyncEvent::Terminate);
     }
 }
 
