@@ -346,9 +346,9 @@ pub fn init_to_server_async<A: ToSocketAddrs>(server_addr: A,
 
 fn make_pattern(show_thread_name: bool) -> PatternLayout {
     let pattern = if show_thread_name {
-        "%l %T [%M:%f:%L] %m"
+        "%l %d %T [%M:%f:%L] %m"
     } else {
-        "%l [%M:%f:%L] %m"
+        "%l %d [%M:%f:%L] %m"
     };
 
     unwrap_result!(PatternLayout::new(pattern))
