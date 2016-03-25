@@ -33,6 +33,10 @@ use std::str::FromStr;
 
 use toml::{Table, Value};
 
+/// Message terminator for streaming to Log Servers. Servers must look out for this sequence which
+/// demarcates the end of a particular log message.
+pub const MSG_TERMINATOR: [u8; 3] = [254, 253, 255];
+
 /// Appender that writes to the stdout asynchronously.
 pub struct AsyncConsoleAppender;
 
@@ -145,6 +149,8 @@ pub struct AsyncServerAppenderCreator;
 
 impl CreateAppender for AsyncServerAppenderCreator {
     fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
+        use net2::TcpStreamExt;
+
         let server_addr = match config.remove("server_addr") {
             Some(Value::String(addr)) => try!(SocketAddr::from_str(&addr[..])),
             Some(_) => return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned()))),
@@ -153,6 +159,7 @@ impl CreateAppender for AsyncServerAppenderCreator {
         let pattern = try!(parse_pattern(&mut config));
 
         let stream = try!(TcpStream::connect(server_addr));
+        try!(stream.set_nodelay(true));
         Ok(Box::new(AsyncAppender::new(stream, pattern)))
     }
 }
@@ -186,7 +193,8 @@ pub struct AsyncAppender {
 }
 
 impl AsyncAppender {
-    fn new<W: 'static + SyncWrite + Send>(mut writer: W, pattern: PatternLayout) -> Self {
+    /// Construct an AsyncAppender
+    pub fn new<W: 'static + SyncWrite + Send>(mut writer: W, pattern: PatternLayout) -> Self {
         let (sender, receiver) = mpsc::channel::<Vec<u8>>();
 
         let _ = thread::spawn(move || {
@@ -212,7 +220,8 @@ impl Append for AsyncAppender {
     }
 }
 
-trait SyncWrite {
+/// Trait to be implemented for anything utilising AsyncAppender
+pub trait SyncWrite {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()>;
 }
 
@@ -235,7 +244,8 @@ impl SyncWrite for File {
 
 impl SyncWrite for TcpStream {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
-        let _ = try!(self.write_all(buf));
+        let _ = try!(self.write_all(&buf));
+        let _ = try!(self.write_all(&MSG_TERMINATOR[..]));
         Ok(())
     }
 }

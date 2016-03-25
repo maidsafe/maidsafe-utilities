@@ -76,10 +76,11 @@ use log4rs::toml::Creator;
 
 use std::fmt::{self, Display, Formatter};
 use std::path::Path;
+use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{Once, ONCE_INIT};
 
-use async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
-                AsyncFileAppenderCreator, AsyncServerAppenderCreator};
+use async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender, AsyncFileAppenderCreator,
+                AsyncServerAppenderCreator, AsyncAppender};
 use logger::LogLevelFilter;
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
@@ -89,37 +90,45 @@ static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 /// Initialises the env_logger for output to stdout.
 ///
 /// For further details, see the [module docs](index.html).
-pub fn init(show_thread_name: bool) {
+pub fn init(show_thread_name: bool) -> Result<(), String> {
+    let mut result = Err("Logger already initialised".to_owned());
+
     INITIALISE_LOGGER.call_once(|| {
         let config_path = Path::new(CONFIG_FILE);
 
-        if config_path.is_file() {
+        result = if config_path.is_file() {
             let mut creator = Creator::default();
             creator.add_appender("async_console", Box::new(AsyncConsoleAppenderCreator));
             creator.add_appender("async_file", Box::new(AsyncFileAppenderCreator));
             creator.add_appender("async_server", Box::new(AsyncServerAppenderCreator));
 
-            log4rs::init_file(config_path, creator)
+            log4rs::init_file(config_path, creator).map_err(|e| format!("{}", e))
         } else {
             let pattern = make_pattern(show_thread_name);
 
             let appender = ConsoleAppender::builder().pattern(pattern).build();
             let appender = Appender::builder("console".to_owned(), Box::new(appender)).build();
 
-            let (default_level, loggers) = parse_loggers_from_env()
-                                               .expect("failed to parse RUST_LOG env variable");
+            let (default_level, loggers) = parse_loggers_from_env().expect("failed to parse RUST_LOG env variable");
 
             let root = Root::builder(default_level).appender("console".to_owned()).build();
-            let config = Config::builder(root)
-                             .appender(appender)
-                             .loggers(loggers)
-                             .build()
-                             .unwrap();
+            let config = match Config::builder(root)
+                                   .appender(appender)
+                                   .loggers(loggers)
+                                   .build()
+                                   .map_err(|e| format!("{}", e)) {
+                Ok(config) => config,
+                Err(e) => {
+                    result = Err(e);
+                    return;
+                }
+            };
 
-            log4rs::init_config(config)
-        }
-        .expect("failed to initialize logging");
+            log4rs::init_config(config).map_err(|e| format!("{}", e))
+        };
     });
+
+    result
 }
 
 /// Initialises the env_logger for output to a file and to stdout.
@@ -163,8 +172,7 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Res
         let console_appender = ConsoleAppender::builder()
                                    .pattern(make_pattern(show_thread_name))
                                    .build();
-        let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender))
-                                   .build();
+        let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
 
         let (default_level, loggers) = match parse_loggers_from_env() {
             Ok((level, loggers)) => (level, loggers),
@@ -179,12 +187,18 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Res
                        .appender("file".to_owned())
                        .build();
 
-        let config = Config::builder(root)
-                         .appender(console_appender)
-                         .appender(file_appender)
-                         .loggers(loggers)
-                         .build()
-                         .unwrap();
+        let config = match Config::builder(root)
+                               .appender(console_appender)
+                               .appender(file_appender)
+                               .loggers(loggers)
+                               .build()
+                               .map_err(|e| format!("{}", e)) {
+            Ok(config) => config,
+            Err(e) => {
+                result = Err(e);
+                return;
+            }
+        };
 
         result = log4rs::init_config(config).map_err(|e| format!("{}", e))
     });
@@ -238,14 +252,92 @@ pub fn init_to_file_async<P: AsRef<Path>>(show_thread_name: bool,
             let console_appender = AsyncConsoleAppender::builder()
                                        .pattern(make_pattern(show_thread_name))
                                        .build();
-            let console_appender = Appender::builder("console".to_owned(),
-                                                     Box::new(console_appender))
-                                       .build();
+            let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
 
             config = config.appender(console_appender);
         }
 
-        let config = config.build().unwrap();
+        let config = match config.build().map_err(|e| format!("{}", e)) {
+            Ok(config) => config,
+            Err(e) => {
+                result = Err(e);
+                return;
+            }
+        };
+        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
+    });
+
+    result
+}
+
+/// Initialises the env_logger for output to a server and optionally to the
+/// console asynchronously.
+pub fn init_to_server_async<A: ToSocketAddrs>(server_addr: A,
+                                              show_thread_name: bool,
+                                              log_to_console: bool)
+                                              -> Result<(), String> {
+    let mut result = Err("Logger already initialised".to_owned());
+
+    INITIALISE_LOGGER.call_once(|| {
+        use net2::TcpStreamExt;
+
+        let (default_level, loggers) = match parse_loggers_from_env() {
+            Ok((level, loggers)) => (level, loggers),
+            Err(error) => {
+                result = Err(format!("{}", error));
+                return;
+            }
+        };
+
+        let mut root = Root::builder(default_level).appender("server".to_owned());
+
+        if log_to_console {
+            root = root.appender("console".to_owned());
+        }
+
+        let root = root.build();
+
+        let mut config = Config::builder(root).loggers(loggers);
+
+        let pattern = make_pattern(show_thread_name);
+
+        let stream = match TcpStream::connect(server_addr).map_err(|e| format!("{}", e)) {
+            Ok(stream) => {
+                match stream.set_nodelay(true) {
+                    Ok(()) => stream,
+                    Err(e) => {
+                        result = Err(format!{"{}", e});
+                        return;
+                    }
+                }
+            }
+            Err(e) => {
+                result = Err(e);
+                return;
+            }
+        };
+        let server_appender = Appender::builder("server".to_owned(),
+                                                Box::new(AsyncAppender::new(stream, pattern)))
+                                  .build();
+
+        config = config.appender(server_appender);
+
+        if log_to_console {
+            let console_appender = AsyncConsoleAppender::builder()
+                                       .pattern(make_pattern(show_thread_name))
+                                       .build();
+            let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
+
+            config = config.appender(console_appender);
+        }
+
+        let config = match config.build().map_err(|e| format!("{}", e)) {
+            Ok(config) => config,
+            Err(e) => {
+                result = Err(e);
+                return;
+            }
+        };
         result = log4rs::init_config(config).map_err(|e| format!("{}", e))
     });
 
@@ -259,7 +351,7 @@ fn make_pattern(show_thread_name: bool) -> PatternLayout {
         "%l [%M:%f:%L] %m"
     };
 
-    PatternLayout::new(pattern).unwrap()
+    unwrap_result!(PatternLayout::new(pattern))
 }
 
 #[derive(Debug)]
@@ -325,9 +417,18 @@ fn parse_logger(input: &str) -> Result<Logger, ParseLoggerError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use logger::LogLevelFilter;
+mod test {
+    use super::*;
     use super::parse_loggers;
+
+    use std::str;
+    use std::thread;
+    use std::sync::mpsc;
+    use std::time::Duration;
+    use std::net::TcpListener;
+    use logger::LogLevelFilter;
+    use thread::RaiiThreadJoiner;
+    use async_log::MSG_TERMINATOR;
 
     #[test]
     fn test_parse_loggers() {
@@ -362,5 +463,74 @@ mod tests {
 
         assert_eq!(loggers[2].name(), "qux");
         assert_eq!(loggers[2].level(), LogLevelFilter::Trace);
+    }
+
+    #[test]
+    fn server_logging() {
+        const MSG_COUNT: usize = 3;
+
+        let (tx, rx) = mpsc::channel();
+
+        // Start Log Message Server
+        let _raii_joiner = RaiiThreadJoiner::new(thread!("LogMessageServer", move || {
+            use std::io::Read;
+
+            let listener = unwrap_result!(TcpListener::bind("127.0.0.1:55555"));
+            unwrap_result!(tx.send(()));
+            let (mut stream, _) = unwrap_result!(listener.accept());
+
+            let mut log_msgs = Vec::with_capacity(MSG_COUNT);
+
+            let mut read_buf = Vec::with_capacity(1024);
+            let mut scratch_buf = [0u8; 1024];
+            let mut search_frm_index = 0;
+
+            while log_msgs.len() < MSG_COUNT {
+                let bytes_rxd = unwrap_result!(stream.read(&mut scratch_buf));
+                if bytes_rxd == 0 {
+                    unreachable!("Should not have encountered shutdown yet");
+                }
+
+                read_buf.extend_from_slice(&scratch_buf[..bytes_rxd]);
+
+                while read_buf.len() - search_frm_index >= MSG_TERMINATOR.len() {
+                    let mut found = true;
+                    for i in search_frm_index..search_frm_index + MSG_TERMINATOR.len() {
+                        if read_buf[i] != MSG_TERMINATOR[i - search_frm_index] {
+                            search_frm_index += 1;
+                            found = false;
+                            break;
+                        }
+                    }
+
+                    if found {
+                        log_msgs.push(unwrap_result!(str::from_utf8(&read_buf[..search_frm_index])).to_owned());
+                        read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
+                        search_frm_index = 0;
+                    }
+                }
+            }
+
+            for it in log_msgs.iter().enumerate() {
+                assert!(it.1.contains(&format!("This is message {}", it.0)[..]));
+            }
+        }));
+
+        unwrap_result!(rx.recv());
+
+        unwrap_result!(init_to_server_async("127.0.0.1:55555", true, false));
+
+        info!("This message should not be found by default log level");
+        warn!("This is message 0");
+        trace!("This message should not be found by default log level");
+        warn!("This is message 1");
+
+        // Some interval before the 3rd message to test if server logic above works fine with
+        // separate arrival of messages. Without sleep it will usually receive all 3 messages in a
+        // single read cycle
+        thread::sleep(Duration::from_millis(500));
+
+        debug!("This message should not be found by default log level");
+        error!("This is message 2");
     }
 }

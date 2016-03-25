@@ -15,6 +15,7 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+#[macro_use]
 extern crate maidsafe_utilities;
 #[macro_use]
 extern crate log as logger;
@@ -22,12 +23,12 @@ extern crate log as logger;
 use maidsafe_utilities::log;
 
 fn main() {
-  log::init(true);
-  // let _ = log::init_to_file_async(true, "main.log", true);
+    unwrap_result!(log::init(true));
+    // let _ = log::init_to_file_async(true, "main.log", true);
 
-  trace!("Hello world");
-  debug!("Hello world");
-  info!("Hello world");
-  warn!("Hello world");
-  error!("Hello world");
+    trace!("Hello world");
+    debug!("Hello world");
+    info!("Hello world");
+    warn!("Hello world");
+    error!("Hello world");
 }

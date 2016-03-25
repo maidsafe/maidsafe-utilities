@@ -43,6 +43,7 @@
 #![cfg_attr(feature="clippy", deny(clippy, clippy_pedantic))]
 #![cfg_attr(feature="clippy", allow(use_debug))]
 
+extern crate net2;
 extern crate bincode;
 extern crate log4rs;
 extern crate rustc_serialize;
@@ -50,14 +51,15 @@ extern crate toml;
 #[macro_use]
 extern crate log as logger;
 
-#[allow(unused_extern_crates)] // Needed because the crate is only used for macros
+#[allow(unused_extern_crates)]
+// Needed because the crate is only used for macros
 #[macro_use]
 extern crate quick_error;
 
-#[macro_use] mod unwrap;
+#[macro_use]mod unwrap;
 
 /// Utilities related to threading.
-#[macro_use] pub mod thread;
+#[macro_use]pub mod thread;
 
 /// Allows initialising the env_logger with a standard message format.
 pub mod log;
