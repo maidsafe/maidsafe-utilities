@@ -67,6 +67,13 @@
 //!     // E 12:24:07.065746 Worker [example:src/main.rs:16] Message in named thread
 //! }
 //! ```
+//!
+//! Environment variable `RUST_LOG` can be set and fine-tuned to get various modules logging to
+//! different levels. E.g. `RUST_LOG=mod0,mod1=debug,mod2,mod3` will have `mod0` & `mod1` logging at
+//! `Debug` and more severe levels while `mod2` & `mod3` logging at default (currently `Warn`) and
+//! more severe levels. `RUST_LOG=trace,mod0=error,mod1` is going to change the default log level to
+//! `Trace` and more severe. Thus `mod0` will log at `Error` level and `mod1` at `Trace` and more
+//! severe ones.
 
 use log4rs;
 use log4rs::appender::{ConsoleAppender, FileAppender};
@@ -380,40 +387,41 @@ fn parse_loggers_from_env() -> Result<(LogLevelFilter, Vec<Logger>), ParseLogger
 }
 
 fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLoggerError> {
+    use std::collections::VecDeque;
+
     let mut loggers = Vec::new();
+    let mut grouped_modules = VecDeque::new();
     let mut default_level = DEFAULT_LOG_LEVEL_FILTER;
 
-    for logger in input.split(',')
-                       .map(str::trim)
-                       .filter(|d| !d.is_empty())
-                       .map(parse_logger) {
-        let logger = try!(logger);
-
-        if logger.name().is_empty() {
-            default_level = logger.level();
-        } else {
-            loggers.push(logger);
+    for sub_input in input.split(',')
+                          .map(str::trim)
+                          .filter(|d| !d.is_empty()) {
+        let mut parts = sub_input.trim().split('=');
+        match (parts.next(), parts.next()) {
+            (Some(module_name), Some(level)) => {
+                let level_filter = try!(level.parse());
+                while let Some(module) = grouped_modules.pop_front() {
+                    loggers.push(Logger::builder(module, level_filter).build());
+                }
+                loggers.push(Logger::builder(module_name.to_owned(), level_filter).build());
+            }
+            (Some(module), None) => {
+                if let Ok(level_filter) = module.parse::<LogLevelFilter>() {
+                    default_level = level_filter;
+                } else {
+                    grouped_modules.push_back(module.to_owned());
+                }
+            }
+            _ => return Err(ParseLoggerError),
         }
     }
 
+    while let Some(module) = grouped_modules.pop_front() {
+        loggers.push(Logger::builder(module, default_level).build());
+    }
+
+
     Ok((default_level, loggers))
-}
-
-fn parse_logger(input: &str) -> Result<Logger, ParseLoggerError> {
-    let mut parts = input.trim().split('=');
-    let (name, level) = match (parts.next(), parts.next()) {
-        (Some(part), None) => {
-            match part.parse() {
-                Ok(part) => ("", part),
-                Err(_) => (part, LogLevelFilter::max()),
-            }
-        }
-
-        (Some(name), Some(level)) => (name, try!(level.parse())),
-        _ => return Err(ParseLoggerError),
-    };
-
-    Ok(Logger::builder(name.to_owned(), level).build())
 }
 
 #[cfg(test)]
@@ -440,7 +448,7 @@ mod test {
         assert_eq!(level, LogLevelFilter::Warn);
         assert_eq!(loggers.len(), 1);
         assert_eq!(loggers[0].name(), "foo");
-        assert_eq!(loggers[0].level(), LogLevelFilter::Trace);
+        assert_eq!(loggers[0].level(), LogLevelFilter::Warn);
 
         let (level, loggers) = parse_loggers("info").unwrap();
         assert_eq!(level, LogLevelFilter::Info);
@@ -455,6 +463,7 @@ mod test {
         let (level, loggers) = parse_loggers("foo::bar=error,baz=debug,qux").unwrap();
         assert_eq!(level, LogLevelFilter::Warn);
         assert_eq!(loggers.len(), 3);
+
         assert_eq!(loggers[0].name(), "foo::bar");
         assert_eq!(loggers[0].level(), LogLevelFilter::Error);
 
@@ -462,7 +471,29 @@ mod test {
         assert_eq!(loggers[1].level(), LogLevelFilter::Debug);
 
         assert_eq!(loggers[2].name(), "qux");
-        assert_eq!(loggers[2].level(), LogLevelFilter::Trace);
+        assert_eq!(loggers[2].level(), LogLevelFilter::Warn);
+
+        let (level, loggers) = parse_loggers("info,foo::bar,baz=debug,a0,a1, a2 , a3").unwrap();
+        assert_eq!(level, LogLevelFilter::Info);
+        assert_eq!(loggers.len(), 6);
+
+        assert_eq!(loggers[0].name(), "foo::bar");
+        assert_eq!(loggers[0].level(), LogLevelFilter::Debug);
+
+        assert_eq!(loggers[1].name(), "baz");
+        assert_eq!(loggers[1].level(), LogLevelFilter::Debug);
+
+        assert_eq!(loggers[2].name(), "a0");
+        assert_eq!(loggers[2].level(), LogLevelFilter::Info);
+
+        assert_eq!(loggers[3].name(), "a1");
+        assert_eq!(loggers[3].level(), LogLevelFilter::Info);
+
+        assert_eq!(loggers[4].name(), "a2");
+        assert_eq!(loggers[4].level(), LogLevelFilter::Info);
+
+        assert_eq!(loggers[5].name(), "a3");
+        assert_eq!(loggers[5].level(), LogLevelFilter::Info);
     }
 
     #[test]
