@@ -15,7 +15,6 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-//!
 //! These functions can initialise the env_logger for output to stderr only, or to a file and
 //! stderr.
 //!
@@ -152,16 +151,16 @@ fn format_record(show_thread_name: bool, record: &LogRecord) -> String {
         thread_name = thread::current().name().unwrap_or("???").to_owned();
         thread_name.push_str(" ");
     }
-    let src_filename_length = record.location().file().len();
-    let src_file = if src_filename_length > 40 {
-        let mut src_file = "...".to_owned();
-        src_file.push_str(&record.location().file()[(src_filename_length - 40)..src_filename_length]);
-        src_file
+
+    let file_name = if let Some(file_name_slice) = Path::new(record.location().file())
+                                                       .file_name()
+                                                       .and_then(|elt| elt.to_str()) {
+        file_name_slice
     } else {
-        record.location().file().to_owned()
+        "???"
     };
 
-    format!("{} {}.{:06} {}[{}:{}:{}] {}",
+    format!("{} {}.{:06} {}[{} {}:{}] {}",
             match record.level() {
                 LogLevel::Error => 'E',
                 LogLevel::Warn => 'W',
@@ -176,8 +175,8 @@ fn format_record(show_thread_name: bool, record: &LogRecord) -> String {
             },
             now.tm_nsec / 1000,
             thread_name,
-            record.location().module_path().splitn(2, "::").next().unwrap_or(""),
-            src_file,
+            record.location().module_path(),
+            file_name,
             record.location().line(),
             record.args())
 }
