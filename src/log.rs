@@ -15,11 +15,9 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-//! These functions can initialise logging for output to stdout only, or to a file and
-//! stdout. For more fine-grained control, create file called `log.toml` in the root
-//! directory of the project, or in the same directory where the executable is.
-//! See http://sfackler.github.io/log4rs/doc/v0.3.3/log4rs/index.html for details
-//! about format and structure of this file.
+//!
+//! These functions can initialise the env_logger for output to stderr only, or to a file and
+//! stderr.
 //!
 //! An example of a log message is:
 //!
@@ -67,78 +65,30 @@
 //!     // E 12:24:07.065746 Worker [example:src/main.rs:16] Message in named thread
 //! }
 //! ```
-//!
-//! Environment variable `RUST_LOG` can be set and fine-tuned to get various modules logging to
-//! different levels. E.g. `RUST_LOG=mod0,mod1=debug,mod2,mod3` will have `mod0` & `mod1` logging at
-//! `Debug` and more severe levels while `mod2` & `mod3` logging at default (currently `Warn`) and
-//! more severe levels. `RUST_LOG=trace,mod0=error,mod1` is going to change the default log level to
-//! `Trace` and more severe. Thus `mod0` will log at `Error` level and `mod1` at `Trace` and more
-//! severe ones.
 
-use log4rs;
-use log4rs::appender::{ConsoleAppender, FileAppender};
-use log4rs::config::{Appender, Config, Logger, Root};
-use log4rs::pattern::PatternLayout;
-use log4rs::toml::Creator;
+#![allow(unused)]
+use std::env;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::thread;
 
-use std::fmt::{self, Display, Formatter};
-use std::path::Path;
-use std::net::{TcpStream, ToSocketAddrs};
-use std::sync::{Once, ONCE_INIT};
+use env_logger::LogBuilder;
+use logger::{LogLevel, LogRecord};
+use time;
 
-use async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender, AsyncFileAppenderCreator,
-                AsyncServerAppenderCreator, AsyncAppender};
-use logger::LogLevelFilter;
+static INITIALISE_LOGGER: ::std::sync::Once = ::std::sync::ONCE_INIT;
 
-static INITIALISE_LOGGER: Once = ONCE_INIT;
-static CONFIG_FILE: &'static str = "log.toml";
-static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
-
-/// Initialises the env_logger for output to stdout.
+/// Initialises the env_logger for output to stderr.
 ///
 /// For further details, see the [module docs](index.html).
-pub fn init(show_thread_name: bool) -> Result<(), String> {
-    let mut result = Err("Logger already initialised".to_owned());
-
+pub fn init(show_thread_name: bool) {
     INITIALISE_LOGGER.call_once(|| {
-        let config_path = Path::new(CONFIG_FILE);
-
-        result = if config_path.is_file() {
-            let mut creator = Creator::default();
-            creator.add_appender("async_console", Box::new(AsyncConsoleAppenderCreator));
-            creator.add_appender("async_file", Box::new(AsyncFileAppenderCreator));
-            creator.add_appender("async_server", Box::new(AsyncServerAppenderCreator));
-
-            log4rs::init_file(config_path, creator).map_err(|e| format!("{}", e))
-        } else {
-            let pattern = make_pattern(show_thread_name);
-
-            let appender = ConsoleAppender::builder().pattern(pattern).build();
-            let appender = Appender::builder("console".to_owned(), Box::new(appender)).build();
-
-            let (default_level, loggers) = parse_loggers_from_env().expect("failed to parse RUST_LOG env variable");
-
-            let root = Root::builder(default_level).appender("console".to_owned()).build();
-            let config = match Config::builder(root)
-                                   .appender(appender)
-                                   .loggers(loggers)
-                                   .build()
-                                   .map_err(|e| format!("{}", e)) {
-                Ok(config) => config,
-                Err(e) => {
-                    result = Err(e);
-                    return;
-                }
-            };
-
-            log4rs::init_config(config).map_err(|e| format!("{}", e))
-        };
+        build(move |record: &LogRecord| format_record(show_thread_name, record));
     });
-
-    result
 }
 
-/// Initialises the env_logger for output to a file and to stdout.
+/// Initialises the env_logger for output to a file and to stderr.
 ///
 /// This function will create the logfile at `file_path` if it does not exist, and will truncate it
 /// if it does.  For further details, see the [module docs](index.html).
@@ -154,415 +104,93 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
 ///     assert!(maidsafe_utilities::log::init_to_file(true, "target/test.log").is_ok());
 ///     error!("An error!");
 ///     assert_eq!(maidsafe_utilities::log::init_to_file(true, "target/test.log").unwrap_err(),
-///         "Logger already initialised".to_owned());
+///         "Logger already initialised.".to_owned());
 ///
 ///     // E 22:38:05.499016 <main> [example:main.rs:7] An error!
 /// }
 /// ```
 pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Result<(), String> {
-    let mut result = Err("Logger already initialised".to_owned());
-
+    let mut result = Err("Logger already initialised.".to_owned());
+    let filepath: PathBuf = file_path.as_ref().to_owned();
     INITIALISE_LOGGER.call_once(|| {
-        let file_appender = FileAppender::builder(file_path)
-                                .pattern(make_pattern(show_thread_name))
-                                .append(false)
-                                .build();
-        let file_appender = match file_appender {
-            Ok(appender) => appender,
+        // Check the file can be created in the initialisation phase rather than waiting until the
+        // first call to a logging macro.  If the file can't be created, fall back to stderr logging
+        // only and return an `Err`.
+        let _ = fs::remove_file(&filepath);
+        match File::create(&filepath) {
+            Ok(_) => {
+                result = Ok(());
+                let format = move |record: &LogRecord| {
+                    let mut log_message = format_record(show_thread_name, record);
+                    log_message.push('\n');
+                    let mut logfile = unwrap_result!(OpenOptions::new()
+                                                         .write(true)
+                                                         .create(true)
+                                                         .append(true)
+                                                         .open(&filepath));
+                    unwrap_result!(logfile.write_all(&log_message.clone().into_bytes()[..]));
+                    let _ = log_message.pop();
+                    log_message
+                };
+                build(format);
+            }
             Err(error) => {
-                result = Err(format!("{}", error));
-                return;
+                result = Err(format!("Failed to create logfile at {} - {}",
+                                     filepath.display(),
+                                     error));
+                build(move |record: &LogRecord| format_record(show_thread_name, record));
             }
         };
-        let file_appender = Appender::builder("file".to_owned(), Box::new(file_appender)).build();
-
-        let console_appender = ConsoleAppender::builder()
-                                   .pattern(make_pattern(show_thread_name))
-                                   .build();
-        let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
-
-        let (default_level, loggers) = match parse_loggers_from_env() {
-            Ok((level, loggers)) => (level, loggers),
-            Err(error) => {
-                result = Err(format!("{}", error));
-                return;
-            }
-        };
-
-        let root = Root::builder(default_level)
-                       .appender("console".to_owned())
-                       .appender("file".to_owned())
-                       .build();
-
-        let config = match Config::builder(root)
-                               .appender(console_appender)
-                               .appender(file_appender)
-                               .loggers(loggers)
-                               .build()
-                               .map_err(|e| format!("{}", e)) {
-            Ok(config) => config,
-            Err(e) => {
-                result = Err(e);
-                return;
-            }
-        };
-
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
     });
-
     result
 }
 
-/// Initialises the env_logger for output to a file and optionally to the
-/// console asynchronously.
-pub fn init_to_file_async<P: AsRef<Path>>(show_thread_name: bool,
-                                          file_path: P,
-                                          log_to_console: bool)
-                                          -> Result<(), String> {
-    let mut result = Err("Logger already initialised".to_owned());
-
-    INITIALISE_LOGGER.call_once(|| {
-        let (default_level, loggers) = match parse_loggers_from_env() {
-            Ok((level, loggers)) => (level, loggers),
-            Err(error) => {
-                result = Err(format!("{}", error));
-                return;
-            }
-        };
-
-        let mut root = Root::builder(default_level).appender("file".to_owned());
-
-        if log_to_console {
-            root = root.appender("console".to_owned());
-        }
-
-        let root = root.build();
-
-        let mut config = Config::builder(root).loggers(loggers);
-
-        let file_appender = AsyncFileAppender::builder(file_path)
-                                .pattern(make_pattern(show_thread_name))
-                                .append(false)
-                                .build();
-        let file_appender = match file_appender {
-            Ok(appender) => appender,
-            Err(error) => {
-                result = Err(format!("{}", error));
-                return;
-            }
-        };
-        let file_appender = Appender::builder("file".to_owned(), Box::new(file_appender)).build();
-
-        config = config.appender(file_appender);
-
-        if log_to_console {
-            let console_appender = AsyncConsoleAppender::builder()
-                                       .pattern(make_pattern(show_thread_name))
-                                       .build();
-            let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
-
-            config = config.appender(console_appender);
-        }
-
-        let config = match config.build().map_err(|e| format!("{}", e)) {
-            Ok(config) => config,
-            Err(e) => {
-                result = Err(e);
-                return;
-            }
-        };
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
-    });
-
-    result
-}
-
-/// Initialises the env_logger for output to a server and optionally to the
-/// console asynchronously.
-pub fn init_to_server_async<A: ToSocketAddrs>(server_addr: A,
-                                              show_thread_name: bool,
-                                              log_to_console: bool)
-                                              -> Result<(), String> {
-    let mut result = Err("Logger already initialised".to_owned());
-
-    INITIALISE_LOGGER.call_once(|| {
-        use net2::TcpStreamExt;
-
-        let (default_level, loggers) = match parse_loggers_from_env() {
-            Ok((level, loggers)) => (level, loggers),
-            Err(error) => {
-                result = Err(format!("{}", error));
-                return;
-            }
-        };
-
-        let mut root = Root::builder(default_level).appender("server".to_owned());
-
-        if log_to_console {
-            root = root.appender("console".to_owned());
-        }
-
-        let root = root.build();
-
-        let mut config = Config::builder(root).loggers(loggers);
-
-        let pattern = make_pattern(show_thread_name);
-
-        let stream = match TcpStream::connect(server_addr).map_err(|e| format!("{}", e)) {
-            Ok(stream) => {
-                match stream.set_nodelay(true) {
-                    Ok(()) => stream,
-                    Err(e) => {
-                        result = Err(format!{"{}", e});
-                        return;
-                    }
-                }
-            }
-            Err(e) => {
-                result = Err(e);
-                return;
-            }
-        };
-        let server_appender = Appender::builder("server".to_owned(),
-                                                Box::new(AsyncAppender::new(stream, pattern)))
-                                  .build();
-
-        config = config.appender(server_appender);
-
-        if log_to_console {
-            let console_appender = AsyncConsoleAppender::builder()
-                                       .pattern(make_pattern(show_thread_name))
-                                       .build();
-            let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
-
-            config = config.appender(console_appender);
-        }
-
-        let config = match config.build().map_err(|e| format!("{}", e)) {
-            Ok(config) => config,
-            Err(e) => {
-                result = Err(e);
-                return;
-            }
-        };
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
-    });
-
-    result
-}
-
-fn make_pattern(show_thread_name: bool) -> PatternLayout {
-    let pattern = if show_thread_name {
-        "%l %d %T [%M ##%f##:%L] %m"
+fn format_record(show_thread_name: bool, record: &LogRecord) -> String {
+    let now = time::now();
+    let mut thread_name = "".to_owned();
+    if show_thread_name {
+        thread_name = thread::current().name().unwrap_or("???").to_owned();
+        thread_name.push_str(" ");
+    }
+    let src_filename_length = record.location().file().len();
+    let src_file = if src_filename_length > 40 {
+        let mut src_file = "...".to_owned();
+        src_file.push_str(&record.location().file()[(src_filename_length - 40)..src_filename_length]);
+        src_file
     } else {
-        "%l %d [%M ##%f##:%L] %m"
+        record.location().file().to_owned()
     };
 
-    unwrap_result!(PatternLayout::new(pattern))
+    format!("{} {}.{:06} {}[{}:{}:{}] {}",
+            match record.level() {
+                LogLevel::Error => 'E',
+                LogLevel::Warn => 'W',
+                LogLevel::Info => 'I',
+                LogLevel::Debug => 'D',
+                LogLevel::Trace => 'T',
+            },
+            if let Ok(time_txt) = ::time::strftime("%T", &now) {
+                time_txt
+            } else {
+                "".to_owned()
+            },
+            now.tm_nsec / 1000,
+            thread_name,
+            record.location().module_path().splitn(2, "::").next().unwrap_or(""),
+            src_file,
+            record.location().line(),
+            record.args())
 }
 
-#[derive(Debug)]
-struct ParseLoggerError;
+fn build<F: 'static>(format: F)
+    where F: Fn(&LogRecord) -> String + Sync + Send
+{
+    let mut builder = LogBuilder::new();
+    let _ = builder.format(format);
 
-impl Display for ParseLoggerError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "ParseLoggerError")
-    }
-}
-
-impl From<()> for ParseLoggerError {
-    fn from(_: ()) -> Self {
-        ParseLoggerError
-    }
-}
-
-fn parse_loggers_from_env() -> Result<(LogLevelFilter, Vec<Logger>), ParseLoggerError> {
-    use std::env;
-
-    if let Ok(var) = env::var("RUST_LOG") {
-        parse_loggers(&var)
-    } else {
-        Ok((DEFAULT_LOG_LEVEL_FILTER, Vec::new()))
-    }
-}
-
-fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLoggerError> {
-    use std::collections::VecDeque;
-
-    let mut loggers = Vec::new();
-    let mut grouped_modules = VecDeque::new();
-    let mut default_level = DEFAULT_LOG_LEVEL_FILTER;
-
-    for sub_input in input.split(',')
-                          .map(str::trim)
-                          .filter(|d| !d.is_empty()) {
-        let mut parts = sub_input.trim().split('=');
-        match (parts.next(), parts.next()) {
-            (Some(module_name), Some(level)) => {
-                let level_filter = try!(level.parse());
-                while let Some(module) = grouped_modules.pop_front() {
-                    loggers.push(Logger::builder(module, level_filter).build());
-                }
-                loggers.push(Logger::builder(module_name.to_owned(), level_filter).build());
-            }
-            (Some(module), None) => {
-                if let Ok(level_filter) = module.parse::<LogLevelFilter>() {
-                    default_level = level_filter;
-                } else {
-                    grouped_modules.push_back(module.to_owned());
-                }
-            }
-            _ => return Err(ParseLoggerError),
-        }
+    if let Ok(rust_log) = env::var("RUST_LOG") {
+        let _ = builder.parse(&rust_log);
     }
 
-    while let Some(module) = grouped_modules.pop_front() {
-        loggers.push(Logger::builder(module, default_level).build());
-    }
-
-
-    Ok((default_level, loggers))
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use super::parse_loggers;
-
-    use std::str;
-    use std::thread;
-    use std::sync::mpsc;
-    use std::time::Duration;
-    use std::net::TcpListener;
-    use logger::LogLevelFilter;
-    use thread::RaiiThreadJoiner;
-    use async_log::MSG_TERMINATOR;
-
-    #[test]
-    fn test_parse_loggers() {
-        let (level, loggers) = parse_loggers("").unwrap();
-        assert_eq!(level, LogLevelFilter::Warn);
-        assert!(loggers.is_empty());
-
-        let (level, loggers) = parse_loggers("foo").unwrap();
-        assert_eq!(level, LogLevelFilter::Warn);
-        assert_eq!(loggers.len(), 1);
-        assert_eq!(loggers[0].name(), "foo");
-        assert_eq!(loggers[0].level(), LogLevelFilter::Warn);
-
-        let (level, loggers) = parse_loggers("info").unwrap();
-        assert_eq!(level, LogLevelFilter::Info);
-        assert!(loggers.is_empty());
-
-        let (level, loggers) = parse_loggers("foo::bar=warn").unwrap();
-        assert_eq!(level, LogLevelFilter::Warn);
-        assert_eq!(loggers.len(), 1);
-        assert_eq!(loggers[0].name(), "foo::bar");
-        assert_eq!(loggers[0].level(), LogLevelFilter::Warn);
-
-        let (level, loggers) = parse_loggers("foo::bar=error,baz=debug,qux").unwrap();
-        assert_eq!(level, LogLevelFilter::Warn);
-        assert_eq!(loggers.len(), 3);
-
-        assert_eq!(loggers[0].name(), "foo::bar");
-        assert_eq!(loggers[0].level(), LogLevelFilter::Error);
-
-        assert_eq!(loggers[1].name(), "baz");
-        assert_eq!(loggers[1].level(), LogLevelFilter::Debug);
-
-        assert_eq!(loggers[2].name(), "qux");
-        assert_eq!(loggers[2].level(), LogLevelFilter::Warn);
-
-        let (level, loggers) = parse_loggers("info,foo::bar,baz=debug,a0,a1, a2 , a3").unwrap();
-        assert_eq!(level, LogLevelFilter::Info);
-        assert_eq!(loggers.len(), 6);
-
-        assert_eq!(loggers[0].name(), "foo::bar");
-        assert_eq!(loggers[0].level(), LogLevelFilter::Debug);
-
-        assert_eq!(loggers[1].name(), "baz");
-        assert_eq!(loggers[1].level(), LogLevelFilter::Debug);
-
-        assert_eq!(loggers[2].name(), "a0");
-        assert_eq!(loggers[2].level(), LogLevelFilter::Info);
-
-        assert_eq!(loggers[3].name(), "a1");
-        assert_eq!(loggers[3].level(), LogLevelFilter::Info);
-
-        assert_eq!(loggers[4].name(), "a2");
-        assert_eq!(loggers[4].level(), LogLevelFilter::Info);
-
-        assert_eq!(loggers[5].name(), "a3");
-        assert_eq!(loggers[5].level(), LogLevelFilter::Info);
-    }
-
-    #[test]
-    fn server_logging() {
-        const MSG_COUNT: usize = 3;
-
-        let (tx, rx) = mpsc::channel();
-
-        // Start Log Message Server
-        let _raii_joiner = RaiiThreadJoiner::new(thread!("LogMessageServer", move || {
-            use std::io::Read;
-
-            let listener = unwrap_result!(TcpListener::bind("127.0.0.1:55555"));
-            unwrap_result!(tx.send(()));
-            let (mut stream, _) = unwrap_result!(listener.accept());
-
-            let mut log_msgs = Vec::with_capacity(MSG_COUNT);
-
-            let mut read_buf = Vec::with_capacity(1024);
-            let mut scratch_buf = [0u8; 1024];
-            let mut search_frm_index = 0;
-
-            while log_msgs.len() < MSG_COUNT {
-                let bytes_rxd = unwrap_result!(stream.read(&mut scratch_buf));
-                if bytes_rxd == 0 {
-                    unreachable!("Should not have encountered shutdown yet");
-                }
-
-                read_buf.extend_from_slice(&scratch_buf[..bytes_rxd]);
-
-                while read_buf.len() - search_frm_index >= MSG_TERMINATOR.len() {
-                    let mut found = true;
-                    for i in search_frm_index..search_frm_index + MSG_TERMINATOR.len() {
-                        if read_buf[i] != MSG_TERMINATOR[i - search_frm_index] {
-                            search_frm_index += 1;
-                            found = false;
-                            break;
-                        }
-                    }
-
-                    if found {
-                        log_msgs.push(unwrap_result!(str::from_utf8(&read_buf[..search_frm_index])).to_owned());
-                        read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
-                        search_frm_index = 0;
-                    }
-                }
-            }
-
-            for it in log_msgs.iter().enumerate() {
-                assert!(it.1.contains(&format!("This is message {}", it.0)[..]));
-                assert!(!it.1.contains("#"));
-            }
-        }));
-
-        unwrap_result!(rx.recv());
-
-        unwrap_result!(init_to_server_async("127.0.0.1:55555", true, false));
-
-        info!("This message should not be found by default log level");
-        warn!("This is message 0");
-        trace!("This message should not be found by default log level");
-        warn!("This is message 1");
-
-        // Some interval before the 3rd message to test if server logic above works fine with
-        // separate arrival of messages. Without sleep it will usually receive all 3 messages in a
-        // single read cycle
-        thread::sleep(Duration::from_millis(500));
-
-        debug!("This message should not be found by default log level");
-        error!("This is message 2");
-    }
+    builder.init().unwrap_or_else(|error| println!("Error initialising logger: {}", error));
 }
