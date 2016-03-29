@@ -76,7 +76,6 @@
 //! severe ones.
 
 use log4rs;
-use log4rs::appender::{ConsoleAppender, FileAppender};
 use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::pattern::PatternLayout;
 use log4rs::toml::Creator;
@@ -111,16 +110,16 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
 
             log4rs::init_file(config_path, creator).map_err(|e| format!("{}", e))
         } else {
-            let pattern = make_pattern(show_thread_name);
-
-            let appender = ConsoleAppender::builder().pattern(pattern).build();
-            let appender = Appender::builder("console".to_owned(), Box::new(appender)).build();
+            let console_appender = AsyncConsoleAppender::builder()
+                                       .pattern(make_pattern(show_thread_name))
+                                       .build();
+            let console_appender = Appender::builder("async_console".to_owned(), Box::new(console_appender)).build();
 
             let (default_level, loggers) = parse_loggers_from_env().expect("failed to parse RUST_LOG env variable");
 
-            let root = Root::builder(default_level).appender("console".to_owned()).build();
+            let root = Root::builder(default_level).appender("async_console".to_owned()).build();
             let config = match Config::builder(root)
-                                   .appender(appender)
+                                   .appender(console_appender)
                                    .loggers(loggers)
                                    .build()
                                    .map_err(|e| format!("{}", e)) {
@@ -138,87 +137,9 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
     result
 }
 
-/// Initialises the env_logger for output to a file and to stdout.
-///
-/// This function will create the logfile at `file_path` if it does not exist, and will truncate it
-/// if it does.  For further details, see the [module docs](index.html).
-///
-/// #Examples
-///
-/// ```
-/// #[macro_use]
-/// extern crate log;
-/// extern crate maidsafe_utilities;
-///
-/// fn main() {
-///     assert!(maidsafe_utilities::log::init_to_file(true, "target/test.log").is_ok());
-///     error!("An error!");
-///     assert_eq!(maidsafe_utilities::log::init_to_file(true, "target/test.log").unwrap_err(),
-///         "Logger already initialised".to_owned());
-///
-///     // E 22:38:05.499016 <main> [example:main.rs:7] An error!
-/// }
-/// ```
-pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P) -> Result<(), String> {
-    let mut result = Err("Logger already initialised".to_owned());
-
-    INITIALISE_LOGGER.call_once(|| {
-        let file_appender = FileAppender::builder(file_path)
-                                .pattern(make_pattern(show_thread_name))
-                                .append(false)
-                                .build();
-        let file_appender = match file_appender {
-            Ok(appender) => appender,
-            Err(error) => {
-                result = Err(format!("{}", error));
-                return;
-            }
-        };
-        let file_appender = Appender::builder("file".to_owned(), Box::new(file_appender)).build();
-
-        let console_appender = ConsoleAppender::builder()
-                                   .pattern(make_pattern(show_thread_name))
-                                   .build();
-        let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
-
-        let (default_level, loggers) = match parse_loggers_from_env() {
-            Ok((level, loggers)) => (level, loggers),
-            Err(error) => {
-                result = Err(format!("{}", error));
-                return;
-            }
-        };
-
-        let root = Root::builder(default_level)
-                       .appender("console".to_owned())
-                       .appender("file".to_owned())
-                       .build();
-
-        let config = match Config::builder(root)
-                               .appender(console_appender)
-                               .appender(file_appender)
-                               .loggers(loggers)
-                               .build()
-                               .map_err(|e| format!("{}", e)) {
-            Ok(config) => config,
-            Err(e) => {
-                result = Err(e);
-                return;
-            }
-        };
-
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
-    });
-
-    result
-}
-
 /// Initialises the env_logger for output to a file and optionally to the
 /// console asynchronously.
-pub fn init_to_file_async<P: AsRef<Path>>(show_thread_name: bool,
-                                          file_path: P,
-                                          log_to_console: bool)
-                                          -> Result<(), String> {
+pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P, log_to_console: bool) -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
@@ -279,10 +200,10 @@ pub fn init_to_file_async<P: AsRef<Path>>(show_thread_name: bool,
 
 /// Initialises the env_logger for output to a server and optionally to the
 /// console asynchronously.
-pub fn init_to_server_async<A: ToSocketAddrs>(server_addr: A,
-                                              show_thread_name: bool,
-                                              log_to_console: bool)
-                                              -> Result<(), String> {
+pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
+                                        show_thread_name: bool,
+                                        log_to_console: bool)
+                                        -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
@@ -353,9 +274,9 @@ pub fn init_to_server_async<A: ToSocketAddrs>(server_addr: A,
 
 fn make_pattern(show_thread_name: bool) -> PatternLayout {
     let pattern = if show_thread_name {
-        "%l %d %T [%M ##%f##:%L] %m"
+        "%l %d{%H:%M:%S.%f} %T [%M ##%f##:%L] %m"
     } else {
-        "%l %d [%M ##%f##:%L] %m"
+        "%l %d{%H:%M:%S.%f} [%M ##%f##:%L] %m"
     };
 
     unwrap_result!(PatternLayout::new(pattern))
@@ -550,7 +471,7 @@ mod test {
 
         unwrap_result!(rx.recv());
 
-        unwrap_result!(init_to_server_async("127.0.0.1:55555", true, false));
+        unwrap_result!(init_to_server("127.0.0.1:55555", true, false));
 
         info!("This message should not be found by default log level");
         warn!("This is message 0");
