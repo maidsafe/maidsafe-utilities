@@ -1,7 +1,7 @@
 # MaidSafe Utilities - Change Log
 
-## [0.4.2]
-- Format changes to logging - 1) Full print of module name 2) Only file name (not path) printed.
+## [0.5.0]
+- Async Logging introduced - uses log4rs.
 
 ## [0.4.1]
 - Use bincode serialisation size limits
