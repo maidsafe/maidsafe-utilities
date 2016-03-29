@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.5.0]
+- Async Logging introduced - uses log4rs.
+
 ## [0.4.1]
 - Use bincode serialisation size limits
 
