@@ -25,13 +25,13 @@
 //!
 //! ```
 //! # fn main() { /*
-//! W 19:33:49.245434 <main> [example:src/main.rs:50] Warning level message.
-//! ^        ^          ^        ^          ^                    ^
-//! |    timestamp      | top-level module  |                 message
-//! |                   |                   |
-//! |              thread name       file and line no.
+//! WARN 23:59:59.123456789 log::test::abc [maidsafe_utilities::log::test::abc abc.rs:50] A log message.
+//! ^        ^               ^              ^                                  ^             ^
+//! |    timestamp           |       top-level module                          |          message
+//! |                        |                                                 |
+//! |                   thread name                                     file and line no.
 //! |
-//! level (E, W, I, D, or T for error, warn, info, debug or trace respectively)
+//! level (ERROR, WARN, INFO, DEBUG, or TRACE)
 //! # */}
 //! ```
 //!
@@ -52,7 +52,7 @@
 //! use maidsafe_utilities::thread::RaiiThreadJoiner;
 //!
 //! fn main() {
-//!     maidsafe_utilities::log::init(true);
+//!     unwrap_result!(maidsafe_utilities::log::init(true));
 //!
 //!     warn!("A warning");
 //!
@@ -61,10 +61,6 @@
 //!
 //!     let _named = RaiiThreadJoiner::new(thread!("Worker",
 //!                      move || error!("Message in named thread")));
-//!
-//!     // W 12:24:07.064746 <main> [example:src/main.rs:11] A warning
-//!     // I 12:24:07.065746 ??? [example:src/main.rs:13] Message in unnamed thread
-//!     // E 12:24:07.065746 Worker [example:src/main.rs:16] Message in named thread
 //! }
 //! ```
 //!
