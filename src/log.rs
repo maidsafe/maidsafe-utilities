@@ -15,29 +15,30 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-//! These functions can initialise logging for output to stdout only, or to a file and
-//! stdout. For more fine-grained control, create file called `log.toml` in the root
-//! directory of the project, or in the same directory where the executable is.
-//! See http://sfackler.github.io/log4rs/doc/v0.3.3/log4rs/index.html for details
-//! about format and structure of this file.
+//!
+//! These functions can initialise logging for output to stdout only, or to a file and stdout.  For
+//! more fine-grained control, create a file called `log.toml` in the root directory of the project,
+//! or in the same directory where the executable is.  See [log4rs docs]
+//! (http://sfackler.github.io/log4rs/doc/v0.3.3/log4rs/index.html) for details about the format and
+//! structure of this file.
 //!
 //! An example of a log message is:
 //!
 //! ```
 //! # fn main() { /*
-//! W 19:33:49.245434 <main> [example:src/main.rs:50] Warning level message.
-//! ^        ^          ^        ^          ^                    ^
-//! |    timestamp      | top-level module  |                 message
-//! |                   |                   |
-//! |              thread name       file and line no.
+//! WARN 19:33:49.245434200 <main> [example::my_mod main.rs:10] Warning level message.
+//! ^           ^             ^              ^         ^                  ^
+//! |       timestamp         |           module       |               message
+//! |                         |                        |
+//! |                    thread name           file and line no.
 //! |
-//! level (E, W, I, D, or T for error, warn, info, debug or trace respectively)
+//! level (ERROR, WARN, INFO, DEBUG, or TRACE)
 //! # */}
 //! ```
 //!
 //! Logging of the thread name is enabled or disabled via the `show_thread_name` parameter.  If
 //! enabled, and the thread executing the log statement is unnamed, the thread name is shown as
-//! `???`.
+//! `<unnamed>`.
 //!
 //! The functions can safely be called multiple times concurrently.
 //!
@@ -51,20 +52,26 @@
 //! use std::thread;
 //! use maidsafe_utilities::thread::RaiiThreadJoiner;
 //!
-//! fn main() {
-//!     maidsafe_utilities::log::init(true);
+//! mod my_mod {
+//!     pub fn show_warning() {
+//!         warn!("A warning");
+//!     }
+//! }
 //!
-//!     warn!("A warning");
+//! fn main() {
+//!     unwrap_result!(maidsafe_utilities::log::init(true));
+//!
+//!     my_mod::show_warning();
 //!
 //!     let unnamed = thread::spawn(move || info!("Message in unnamed thread"));
 //!     let _ = unnamed.join();
 //!
 //!     let _named = RaiiThreadJoiner::new(thread!("Worker",
-//!                      move || error!("Message in named thread")));
+//!                                                move || error!("Message in named thread")));
 //!
-//!     // W 12:24:07.064746 <main> [example:src/main.rs:11] A warning
-//!     // I 12:24:07.065746 ??? [example:src/main.rs:13] Message in unnamed thread
-//!     // E 12:24:07.065746 Worker [example:src/main.rs:16] Message in named thread
+//!     // WARN 16:10:44.989712300 <main> [example::my_mod main.rs:10] A warning
+//!     // INFO 16:10:44.990716600 <unnamed> [example main.rs:19] Message in unnamed thread
+//!     // ERROR 16:10:44.991221900 Worker [example main.rs:22] Message in named thread
 //! }
 //! ```
 //!
@@ -274,9 +281,9 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
 
 fn make_pattern(show_thread_name: bool) -> PatternLayout {
     let pattern = if show_thread_name {
-        "%l %d{%H:%M:%S.%f} %T [%M ##%f##:%L] %m"
+        "%l %d{%H:%M:%S.%f} %T [%M #FS#%f#FE#:%L] %m"
     } else {
-        "%l %d{%H:%M:%S.%f} [%M ##%f##:%L] %m"
+        "%l %d{%H:%M:%S.%f} [%M #FS#%f#FE#:%L] %m"
     };
 
     unwrap_result!(PatternLayout::new(pattern))
