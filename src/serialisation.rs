@@ -20,6 +20,8 @@ use bincode::rustc_serialize::{decode_from, DecodingError, encode, encode_into, 
 use rustc_serialize::{Encodable, Decodable};
 use std::io::{Read, Write, Cursor};
 
+const UPPER_LIMIT: SizeLimit = SizeLimit::Bounded(1 << 21);
+
 quick_error! {
     /// Serialisation error.
     #[derive(Debug)]
@@ -42,14 +44,14 @@ quick_error! {
     }
 }
 
-/// Serialise an Encodable type
+/// Serialise an Encodable type.
 pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError>
     where T: Encodable
 {
-    encode(data, SizeLimit::Infinite).map_err(From::from)
+    encode(data, UPPER_LIMIT).map_err(From::from)
 }
 
-/// Deserialise a Decodable type
+/// Deserialise a Decodable type.
 pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
     where T: Decodable
 {
@@ -58,27 +60,86 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
 }
 
 /// Serialise an Encodable type directly into a Write.
-pub fn serialise_into<T: Encodable, W: Write>(data: &T, write: &mut W) -> Result<(), SerialisationError> {
-    encode_into(data, write, SizeLimit::Bounded(1 << 21)).map_err(From::from)
+pub fn serialise_into<T: Encodable, W: Write>(data: &T,
+                                              write: &mut W)
+                                              -> Result<(), SerialisationError> {
+    encode_into(data, write, UPPER_LIMIT).map_err(From::from)
 }
 
-/// Deserialise a Decodable type directly from a Read
+/// Deserialise a Decodable type directly from a Read.
 pub fn deserialise_from<R: Read, T: Decodable>(read: &mut R) -> Result<T, SerialisationError> {
-    decode_from(read, SizeLimit::Bounded(1 << 21)).map_err(From::from)
+    decode_from(read, UPPER_LIMIT).map_err(From::from)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::io::Cursor;
+    use bincode::SizeLimit;
+    use bincode::rustc_serialize::{DecodingError, encode, EncodingError};
 
     #[test]
     fn serialise_deserialise() {
-        let original_data = (vec![0u8, 1, 3, 9],
-                             vec![-1i64, 888, -8765],
-                             "Some-String".to_owned());
+        let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
 
         let serialised_data = unwrap_result!(serialise(&original_data));
-        let deserialised_data: (Vec<u8>, Vec<i64>, String) = unwrap_result!(deserialise(&serialised_data));
+        let deserialised_data: (Vec<u8>, Vec<i64>, String) =
+            unwrap_result!(deserialise(&serialised_data));
         assert_eq!(original_data, deserialised_data);
+    }
+
+    #[test]
+    fn serialise_into_deserialise_from() {
+        let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
+        let mut serialised_data = vec![];
+        unwrap_result!(serialise_into(&original_data, &mut serialised_data));
+
+        let mut serialised = Cursor::new(serialised_data);
+        let deserialised_data: (Vec<u8>, Vec<i64>, String) =
+            unwrap_result!(deserialise_from(&mut serialised));
+        assert_eq!(original_data, deserialised_data);
+    }
+
+    #[test]
+    fn upper_limit() {
+        let upper_limit = match super::UPPER_LIMIT {
+            SizeLimit::Bounded(limit) => limit,
+            SizeLimit::Infinite => panic!("Test expects a bounded limit"),
+        };
+        // Test with data which is at limit
+        let mut original_data = (1u64..(upper_limit / 8)).collect::<Vec<_>>();
+        let mut serialised_data = unwrap_result!(serialise(&original_data));
+        let mut deserialised_data: Vec<u64> = unwrap_result!(deserialise(&serialised_data));
+        assert!(original_data == deserialised_data);
+
+        serialised_data.clear();
+        unwrap_result!(serialise_into(&original_data, &mut serialised_data));
+        let mut serialised = Cursor::new(serialised_data);
+        deserialised_data = unwrap_result!(deserialise_from(&mut serialised));
+        assert_eq!(original_data, deserialised_data);
+
+        // Try to serialise data above limit
+        original_data.push(0);
+        if let Err(SerialisationError::Serialise(EncodingError::SizeLimit)) =
+               serialise(&original_data) {} else {
+            panic!("Expected size limit error.");
+        }
+        let mut buffer = vec![];
+        if let Err(SerialisationError::Serialise(EncodingError::SizeLimit)) =
+               serialise_into(&original_data, &mut buffer) {} else {
+            panic!("Expected size limit error.");
+        }
+
+        // Try to deserialise data above limit
+        let excessive = unwrap_result!(encode(&original_data, SizeLimit::Infinite));
+        if let Err(SerialisationError::Deserialise(DecodingError::SizeLimit)) =
+               deserialise::<Vec<u64>>(&excessive) {} else {
+            panic!("Expected size limit error.");
+        }
+        serialised = Cursor::new(excessive);
+        if let Err(SerialisationError::Deserialise(DecodingError::SizeLimit)) =
+               deserialise_from::<Cursor<_>, Vec<u64>>(&mut serialised) {} else {
+            panic!("Expected size limit error.");
+        }
     }
 }

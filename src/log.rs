@@ -15,7 +15,6 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-//!
 //! These functions can initialise logging for output to stdout only, or to a file and stdout.  For
 //! more fine-grained control, create a file called `log.toml` in the root directory of the project,
 //! or in the same directory where the executable is.  See [log4rs docs]
@@ -92,15 +91,15 @@ use std::path::Path;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{Once, ONCE_INIT};
 
-use async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender, AsyncFileAppenderCreator,
-                AsyncServerAppenderCreator, AsyncAppender};
+use async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
+                AsyncFileAppenderCreator, AsyncServerAppenderCreator, AsyncAppender};
 use logger::LogLevelFilter;
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
 static CONFIG_FILE: &'static str = "log.toml";
 static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 
-/// Initialises the env_logger for output to stdout.
+/// Initialises the `env_logger` for output to stdout.
 ///
 /// For further details, see the [module docs](index.html).
 pub fn init(show_thread_name: bool) -> Result<(), String> {
@@ -120,9 +119,12 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
             let console_appender = AsyncConsoleAppender::builder()
                                        .pattern(make_pattern(show_thread_name))
                                        .build();
-            let console_appender = Appender::builder("async_console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder("async_console".to_owned(),
+                                                     Box::new(console_appender))
+                                       .build();
 
-            let (default_level, loggers) = parse_loggers_from_env().expect("failed to parse RUST_LOG env variable");
+            let (default_level, loggers) = parse_loggers_from_env()
+                                               .expect("failed to parse RUST_LOG env variable");
 
             let root = Root::builder(default_level).appender("async_console".to_owned()).build();
             let config = match Config::builder(root)
@@ -144,9 +146,13 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
     result
 }
 
-/// Initialises the env_logger for output to a file and optionally to the
-/// console asynchronously.
-pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P, log_to_console: bool) -> Result<(), String> {
+/// Initialises the `env_logger` for output to a file and optionally to the console asynchronously.
+///
+/// For further details, see the [module docs](index.html).
+pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
+                                    file_path: P,
+                                    log_to_console: bool)
+                                    -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
@@ -187,7 +193,9 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P, log_to
             let console_appender = AsyncConsoleAppender::builder()
                                        .pattern(make_pattern(show_thread_name))
                                        .build();
-            let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder("console".to_owned(),
+                                                     Box::new(console_appender))
+                                       .build();
 
             config = config.appender(console_appender);
         }
@@ -205,8 +213,10 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P, log_to
     result
 }
 
-/// Initialises the env_logger for output to a server and optionally to the
-/// console asynchronously.
+/// Initialises the `env_logger` for output to a server and optionally to the console
+/// asynchronously.
+///
+/// For further details, see the [module docs](index.html).
 pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
                                         show_thread_name: bool,
                                         log_to_console: bool)
@@ -261,7 +271,9 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
             let console_appender = AsyncConsoleAppender::builder()
                                        .pattern(make_pattern(show_thread_name))
                                        .build();
-            let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder("console".to_owned(),
+                                                     Box::new(console_appender))
+                                       .build();
 
             config = config.appender(console_appender);
         }
@@ -463,7 +475,9 @@ mod test {
                     }
 
                     if found {
-                        log_msgs.push(unwrap_result!(str::from_utf8(&read_buf[..search_frm_index])).to_owned());
+                        log_msgs.push(unwrap_result!(
+                            str::from_utf8(&read_buf[..search_frm_index]))
+                                          .to_owned());
                         read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
                         search_frm_index = 0;
                     }
