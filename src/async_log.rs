@@ -206,7 +206,7 @@ impl AsyncAppender {
         let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
         let joiner = thread!("AsyncLog", move || {
-            let re = unwrap_result!(Regex::new(r"##.+[/\\](.{1,})##"));
+            let re = unwrap_result!(Regex::new(r"#FS#?.*[/\\#]([^#]+)#FE#"));
 
             for event in rx.iter() {
                 match event {
