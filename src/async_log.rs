@@ -155,7 +155,9 @@ impl CreateAppender for AsyncServerAppenderCreator {
 
         let server_addr = match config.remove("server_addr") {
             Some(Value::String(addr)) => try!(SocketAddr::from_str(&addr[..])),
-            Some(_) => return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned()))),
+            Some(_) => {
+                return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned())))
+            }
             None => return Err(Box::new(ConfigError("`server_addr` is required".to_owned()))),
         };
         let pattern = try!(parse_pattern(&mut config));
