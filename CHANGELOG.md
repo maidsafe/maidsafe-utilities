@@ -1,10 +1,16 @@
 # MaidSafe Utilities - Change Log
 
+## [0.5.1]
+- Fixed serialisation issue.
+- Fixed bug in logging.
+- Updated logging docs.
+- Updated Contributor Agreement to version 1.1.
+
 ## [0.5.0]
 - Async Logging introduced - uses log4rs.
 
 ## [0.4.1]
-- Use bincode serialisation size limits
+- Use bincode serialisation size limits.
 
 ## [0.4.0]
 - Changed from using CBOR to Bincode.
