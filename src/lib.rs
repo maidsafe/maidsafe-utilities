@@ -57,12 +57,14 @@ extern crate regex;
 #[macro_use]
 extern crate quick_error;
 
-#[macro_use]mod unwrap;
+#[macro_use]
+mod unwrap;
 
 /// Utilities related to threading.
-#[macro_use]pub mod thread;
+#[macro_use]
+pub mod thread;
 
-/// Allows initialising the env_logger with a standard message format.
+/// Allows initialising the `env_logger` with a standard message format.
 pub mod log;
 /// Utilities related to event-subsetting.
 pub mod event_sender;

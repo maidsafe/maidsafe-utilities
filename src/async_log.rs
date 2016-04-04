@@ -109,7 +109,7 @@ impl AsyncFileAppenderBuilder {
     }
 }
 
-/// Creator for AsyncConsoleAppender
+/// Creator for `AsyncConsoleAppender`
 pub struct AsyncConsoleAppenderCreator;
 
 impl CreateAppender for AsyncConsoleAppenderCreator {
@@ -119,7 +119,7 @@ impl CreateAppender for AsyncConsoleAppenderCreator {
     }
 }
 
-/// Creator for AsyncFileAppender
+/// Creator for `AsyncFileAppender`
 pub struct AsyncFileAppenderCreator;
 
 impl CreateAppender for AsyncFileAppenderCreator {
@@ -146,7 +146,7 @@ impl CreateAppender for AsyncFileAppenderCreator {
     }
 }
 
-/// Creator for AsyncServerAppender
+/// Creator for `AsyncServerAppender`
 pub struct AsyncServerAppenderCreator;
 
 impl CreateAppender for AsyncServerAppenderCreator {
@@ -155,7 +155,9 @@ impl CreateAppender for AsyncServerAppenderCreator {
 
         let server_addr = match config.remove("server_addr") {
             Some(Value::String(addr)) => try!(SocketAddr::from_str(&addr[..])),
-            Some(_) => return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned()))),
+            Some(_) => {
+                return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned())))
+            }
             None => return Err(Box::new(ConfigError("`server_addr` is required".to_owned()))),
         };
         let pattern = try!(parse_pattern(&mut config));
@@ -169,7 +171,7 @@ impl CreateAppender for AsyncServerAppenderCreator {
 fn parse_pattern(config: &mut Table) -> Result<PatternLayout, Box<Error>> {
     match config.remove("pattern") {
         Some(Value::String(pattern)) => Ok(try!(PatternLayout::new(&pattern))),
-        Some(_) => return Err(Box::new(ConfigError("`pattern` must be a string".to_owned()))),
+        Some(_) => Err(Box::new(ConfigError("`pattern` must be a string".to_owned()))),
         None => Ok(PatternLayout::default()),
     }
 }
@@ -206,7 +208,7 @@ impl AsyncAppender {
         let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
         let joiner = thread!("AsyncLog", move || {
-            let re = unwrap_result!(Regex::new(r"##.+[/\\](.{1,})##"));
+            let re = unwrap_result!(Regex::new(r"#FS#?.*[/\\#]([^#]+)#FE#"));
 
             for event in rx.iter() {
                 match event {
@@ -251,7 +253,7 @@ impl Drop for AsyncAppender {
     }
 }
 
-/// Trait to be implemented for anything utilising AsyncAppender
+/// Trait to be implemented for anything utilising `AsyncAppender`
 pub trait SyncWrite {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()>;
 }

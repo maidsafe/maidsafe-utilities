@@ -15,29 +15,29 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-//! These functions can initialise logging for output to stdout only, or to a file and
-//! stdout. For more fine-grained control, create file called `log.toml` in the root
-//! directory of the project, or in the same directory where the executable is.
-//! See http://sfackler.github.io/log4rs/doc/v0.3.3/log4rs/index.html for details
-//! about format and structure of this file.
+//! These functions can initialise logging for output to stdout only, or to a file and stdout.  For
+//! more fine-grained control, create a file called `log.toml` in the root directory of the project,
+//! or in the same directory where the executable is.  See [log4rs docs]
+//! (http://sfackler.github.io/log4rs/doc/v0.3.3/log4rs/index.html) for details about the format and
+//! structure of this file.
 //!
 //! An example of a log message is:
 //!
 //! ```
 //! # fn main() { /*
-//! W 19:33:49.245434 <main> [example:src/main.rs:50] Warning level message.
-//! ^        ^          ^        ^          ^                    ^
-//! |    timestamp      | top-level module  |                 message
-//! |                   |                   |
-//! |              thread name       file and line no.
+//! WARN 19:33:49.245434200 <main> [example::my_mod main.rs:10] Warning level message.
+//! ^           ^             ^              ^         ^                  ^
+//! |       timestamp         |           module       |               message
+//! |                         |                        |
+//! |                    thread name           file and line no.
 //! |
-//! level (E, W, I, D, or T for error, warn, info, debug or trace respectively)
+//! level (ERROR, WARN, INFO, DEBUG, or TRACE)
 //! # */}
 //! ```
 //!
 //! Logging of the thread name is enabled or disabled via the `show_thread_name` parameter.  If
 //! enabled, and the thread executing the log statement is unnamed, the thread name is shown as
-//! `???`.
+//! `<unnamed>`.
 //!
 //! The functions can safely be called multiple times concurrently.
 //!
@@ -51,20 +51,26 @@
 //! use std::thread;
 //! use maidsafe_utilities::thread::RaiiThreadJoiner;
 //!
-//! fn main() {
-//!     maidsafe_utilities::log::init(true);
+//! mod my_mod {
+//!     pub fn show_warning() {
+//!         warn!("A warning");
+//!     }
+//! }
 //!
-//!     warn!("A warning");
+//! fn main() {
+//!     unwrap_result!(maidsafe_utilities::log::init(true));
+//!
+//!     my_mod::show_warning();
 //!
 //!     let unnamed = thread::spawn(move || info!("Message in unnamed thread"));
 //!     let _ = unnamed.join();
 //!
 //!     let _named = RaiiThreadJoiner::new(thread!("Worker",
-//!                      move || error!("Message in named thread")));
+//!                                                move || error!("Message in named thread")));
 //!
-//!     // W 12:24:07.064746 <main> [example:src/main.rs:11] A warning
-//!     // I 12:24:07.065746 ??? [example:src/main.rs:13] Message in unnamed thread
-//!     // E 12:24:07.065746 Worker [example:src/main.rs:16] Message in named thread
+//!     // WARN 16:10:44.989712300 <main> [example::my_mod main.rs:10] A warning
+//!     // INFO 16:10:44.990716600 <unnamed> [example main.rs:19] Message in unnamed thread
+//!     // ERROR 16:10:44.991221900 Worker [example main.rs:22] Message in named thread
 //! }
 //! ```
 //!
@@ -85,15 +91,15 @@ use std::path::Path;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{Once, ONCE_INIT};
 
-use async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender, AsyncFileAppenderCreator,
-                AsyncServerAppenderCreator, AsyncAppender};
+use async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
+                AsyncFileAppenderCreator, AsyncServerAppenderCreator, AsyncAppender};
 use logger::LogLevelFilter;
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
 static CONFIG_FILE: &'static str = "log.toml";
 static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 
-/// Initialises the env_logger for output to stdout.
+/// Initialises the `env_logger` for output to stdout.
 ///
 /// For further details, see the [module docs](index.html).
 pub fn init(show_thread_name: bool) -> Result<(), String> {
@@ -113,9 +119,12 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
             let console_appender = AsyncConsoleAppender::builder()
                                        .pattern(make_pattern(show_thread_name))
                                        .build();
-            let console_appender = Appender::builder("async_console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder("async_console".to_owned(),
+                                                     Box::new(console_appender))
+                                       .build();
 
-            let (default_level, loggers) = parse_loggers_from_env().expect("failed to parse RUST_LOG env variable");
+            let (default_level, loggers) = parse_loggers_from_env()
+                                               .expect("failed to parse RUST_LOG env variable");
 
             let root = Root::builder(default_level).appender("async_console".to_owned()).build();
             let config = match Config::builder(root)
@@ -137,9 +146,13 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
     result
 }
 
-/// Initialises the env_logger for output to a file and optionally to the
-/// console asynchronously.
-pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P, log_to_console: bool) -> Result<(), String> {
+/// Initialises the `env_logger` for output to a file and optionally to the console asynchronously.
+///
+/// For further details, see the [module docs](index.html).
+pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
+                                    file_path: P,
+                                    log_to_console: bool)
+                                    -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
@@ -180,7 +193,9 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P, log_to
             let console_appender = AsyncConsoleAppender::builder()
                                        .pattern(make_pattern(show_thread_name))
                                        .build();
-            let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder("console".to_owned(),
+                                                     Box::new(console_appender))
+                                       .build();
 
             config = config.appender(console_appender);
         }
@@ -198,8 +213,10 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool, file_path: P, log_to
     result
 }
 
-/// Initialises the env_logger for output to a server and optionally to the
-/// console asynchronously.
+/// Initialises the `env_logger` for output to a server and optionally to the console
+/// asynchronously.
+///
+/// For further details, see the [module docs](index.html).
 pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
                                         show_thread_name: bool,
                                         log_to_console: bool)
@@ -254,7 +271,9 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
             let console_appender = AsyncConsoleAppender::builder()
                                        .pattern(make_pattern(show_thread_name))
                                        .build();
-            let console_appender = Appender::builder("console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder("console".to_owned(),
+                                                     Box::new(console_appender))
+                                       .build();
 
             config = config.appender(console_appender);
         }
@@ -274,9 +293,9 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
 
 fn make_pattern(show_thread_name: bool) -> PatternLayout {
     let pattern = if show_thread_name {
-        "%l %d{%H:%M:%S.%f} %T [%M ##%f##:%L] %m"
+        "%l %d{%H:%M:%S.%f} %T [%M #FS#%f#FE#:%L] %m"
     } else {
-        "%l %d{%H:%M:%S.%f} [%M ##%f##:%L] %m"
+        "%l %d{%H:%M:%S.%f} [%M #FS#%f#FE#:%L] %m"
     };
 
     unwrap_result!(PatternLayout::new(pattern))
@@ -456,7 +475,9 @@ mod test {
                     }
 
                     if found {
-                        log_msgs.push(unwrap_result!(str::from_utf8(&read_buf[..search_frm_index])).to_owned());
+                        log_msgs.push(unwrap_result!(
+                            str::from_utf8(&read_buf[..search_frm_index]))
+                                          .to_owned());
                         read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
                         search_frm_index = 0;
                     }
