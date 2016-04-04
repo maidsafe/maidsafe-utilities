@@ -18,7 +18,7 @@
 use std::fmt;
 use std::sync::mpsc;
 
-/// Errors that can be returned by EventSender
+/// Errors that can be returned by `EventSender`
 #[derive(Debug)]
 pub enum EventSenderError<Category, EventSubset> {
     /// Error sending the event subset

@@ -99,7 +99,7 @@ static INITIALISE_LOGGER: Once = ONCE_INIT;
 static CONFIG_FILE: &'static str = "log.toml";
 static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 
-/// Initialises the env_logger for output to stdout.
+/// Initialises the `env_logger` for output to stdout.
 ///
 /// For further details, see the [module docs](index.html).
 pub fn init(show_thread_name: bool) -> Result<(), String> {
@@ -146,8 +146,9 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
     result
 }
 
-/// Initialises the env_logger for output to a file and optionally to the
-/// console asynchronously.
+/// Initialises the `env_logger` for output to a file and optionally to the console asynchronously.
+///
+/// For further details, see the [module docs](index.html).
 pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
                                     file_path: P,
                                     log_to_console: bool)
@@ -212,8 +213,10 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
     result
 }
 
-/// Initialises the env_logger for output to a server and optionally to the
-/// console asynchronously.
+/// Initialises the `env_logger` for output to a server and optionally to the console
+/// asynchronously.
+///
+/// For further details, see the [module docs](index.html).
 pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
                                         show_thread_name: bool,
                                         log_to_console: bool)
