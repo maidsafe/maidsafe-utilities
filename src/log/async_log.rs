@@ -27,9 +27,12 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, Stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Sender};
-use std::net::{SocketAddr, TcpStream};
+use std::net::{ToSocketAddrs, SocketAddr, TcpStream};
+
 use std::str::FromStr;
+use std::borrow::Borrow;
 use thread::RaiiThreadJoiner;
+use log::web_socket::WebSocket;
 
 use regex::Regex;
 
@@ -39,7 +42,6 @@ use toml::{Table, Value};
 /// demarcates the end of a particular log message.
 pub const MSG_TERMINATOR: [u8; 3] = [254, 253, 255];
 
-/// Appender that writes to the stdout asynchronously.
 pub struct AsyncConsoleAppender;
 
 impl AsyncConsoleAppender {
@@ -62,7 +64,6 @@ impl AsyncConsoleAppenderBuilder {
     }
 }
 
-/// Appender that writes to a file asynchronously.
 pub struct AsyncFileAppender;
 
 impl AsyncFileAppender {
@@ -109,7 +110,80 @@ impl AsyncFileAppenderBuilder {
     }
 }
 
-/// Creator for `AsyncConsoleAppender`
+pub struct AsyncServerAppender;
+
+impl AsyncServerAppender {
+    pub fn builder<A: ToSocketAddrs>(server_addr: A) -> AsyncServerAppenderBuilder<A> {
+        AsyncServerAppenderBuilder {
+            addr: server_addr,
+            pattern: PatternLayout::default(),
+            no_delay: true,
+        }
+    }
+}
+
+pub struct AsyncServerAppenderBuilder<A> {
+    addr: A,
+    pattern: PatternLayout,
+    no_delay: bool,
+}
+
+impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
+    pub fn pattern(self, pattern: PatternLayout) -> Self {
+        AsyncServerAppenderBuilder {
+            addr: self.addr,
+            pattern: pattern,
+            no_delay: self.no_delay,
+        }
+    }
+
+    pub fn no_delay(self, no_delay: bool) -> Self {
+        AsyncServerAppenderBuilder {
+            addr: self.addr,
+            pattern: self.pattern,
+            no_delay: no_delay,
+        }
+    }
+
+    pub fn build(self) -> io::Result<AsyncAppender> {
+        use net2::TcpStreamExt;
+
+        let stream = try!(TcpStream::connect(self.addr));
+        try!(stream.set_nodelay(self.no_delay));
+        Ok(AsyncAppender::new(stream, self.pattern))
+    }
+}
+
+pub struct AsyncWebSockAppender;
+
+impl AsyncWebSockAppender {
+    pub fn builder<U: Borrow<str>>(server_url: U) -> AsyncWebSockAppenderBuilder<U> {
+        AsyncWebSockAppenderBuilder {
+            url: server_url,
+            pattern: PatternLayout::default(),
+        }
+    }
+}
+
+pub struct AsyncWebSockAppenderBuilder<U> {
+    url: U,
+    pattern: PatternLayout,
+}
+
+impl<U: Borrow<str>> AsyncWebSockAppenderBuilder<U> {
+    pub fn pattern(self, pattern: PatternLayout) -> Self {
+        AsyncWebSockAppenderBuilder {
+            url: self.url,
+            pattern: pattern,
+        }
+    }
+
+    pub fn build(self) -> io::Result<AsyncAppender> {
+        let ws = try!(WebSocket::new(self.url));
+        Ok(AsyncAppender::new(ws, self.pattern))
+    }
+}
+
 pub struct AsyncConsoleAppenderCreator;
 
 impl CreateAppender for AsyncConsoleAppenderCreator {
@@ -119,7 +193,6 @@ impl CreateAppender for AsyncConsoleAppenderCreator {
     }
 }
 
-/// Creator for `AsyncFileAppender`
 pub struct AsyncFileAppenderCreator;
 
 impl CreateAppender for AsyncFileAppenderCreator {
@@ -146,13 +219,10 @@ impl CreateAppender for AsyncFileAppenderCreator {
     }
 }
 
-/// Creator for `AsyncServerAppender`
 pub struct AsyncServerAppenderCreator;
 
 impl CreateAppender for AsyncServerAppenderCreator {
     fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
-        use net2::TcpStreamExt;
-
         let server_addr = match config.remove("server_addr") {
             Some(Value::String(addr)) => try!(SocketAddr::from_str(&addr[..])),
             Some(_) => {
@@ -160,11 +230,36 @@ impl CreateAppender for AsyncServerAppenderCreator {
             }
             None => return Err(Box::new(ConfigError("`server_addr` is required".to_owned()))),
         };
+        let no_delay = match config.remove("no_delay") {
+            Some(Value::Boolean(no_delay)) => no_delay,
+            Some(_) => return Err(Box::new(ConfigError("`no_delay` must be a boolean".to_owned()))),
+            None => true,
+        };
         let pattern = try!(parse_pattern(&mut config));
 
-        let stream = try!(TcpStream::connect(server_addr));
-        try!(stream.set_nodelay(true));
-        Ok(Box::new(AsyncAppender::new(stream, pattern)))
+        Ok(Box::new(try!(AsyncServerAppender::builder(server_addr)
+                             .pattern(pattern)
+                             .no_delay(no_delay)
+                             .build())))
+    }
+}
+
+pub struct AsyncWebSockAppenderCreator;
+
+impl CreateAppender for AsyncWebSockAppenderCreator {
+    fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
+        let server_url = match config.remove("server_url") {
+            Some(Value::String(url)) => url,
+            Some(_) => {
+                return Err(Box::new(ConfigError("`server_url` must be a string".to_owned())))
+            }
+            None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
+        };
+        let pattern = try!(parse_pattern(&mut config));
+
+        Ok(Box::new(try!(AsyncWebSockAppender::builder(server_url)
+                             .pattern(pattern)
+                             .build())))
     }
 }
 
@@ -203,8 +298,7 @@ pub struct AsyncAppender {
 }
 
 impl AsyncAppender {
-    /// Construct an AsyncAppender
-    pub fn new<W: 'static + SyncWrite + Send>(mut writer: W, pattern: PatternLayout) -> Self {
+    fn new<W: 'static + SyncWrite + Send>(mut writer: W, pattern: PatternLayout) -> Self {
         let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
         let joiner = thread!("AsyncLog", move || {
@@ -253,8 +347,7 @@ impl Drop for AsyncAppender {
     }
 }
 
-/// Trait to be implemented for anything utilising `AsyncAppender`
-pub trait SyncWrite {
+trait SyncWrite {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()>;
 }
 
@@ -262,23 +355,26 @@ impl SyncWrite for Stdout {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
         let mut out = self.lock();
         try!(out.write_all(buf));
-        try!(out.flush());
-        Ok(())
+        out.flush()
     }
 }
 
 impl SyncWrite for File {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
         try!(self.write_all(buf));
-        try!(self.flush());
-        Ok(())
+        self.flush()
     }
 }
 
 impl SyncWrite for TcpStream {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
         let _ = try!(self.write_all(&buf));
-        let _ = try!(self.write_all(&MSG_TERMINATOR[..]));
-        Ok(())
+        self.write_all(&MSG_TERMINATOR[..])
+    }
+}
+
+impl SyncWrite for WebSocket {
+    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.write_all(buf)
     }
 }

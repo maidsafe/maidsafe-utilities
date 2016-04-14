@@ -155,7 +155,8 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category
 // it requires EventSubset to be clonable even though mpsc::Sender<EventSubset> does
 // not require EventSubset to be clonable for itself being cloned.
 impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> Clone for EventSender<Category,
-                                                                                  EventSubset> {
+                                                                                  EventSubset>
+    {
     fn clone(&self) -> EventSender<Category, EventSubset> {
         EventSender {
             event_tx: self.event_tx.clone(),

@@ -51,6 +51,7 @@ extern crate toml;
 #[macro_use]
 extern crate log as logger;
 extern crate regex;
+extern crate ws;
 
 #[allow(unused_extern_crates)]
 // Needed because the crate is only used for macros
@@ -70,5 +71,3 @@ pub mod log;
 pub mod event_sender;
 /// Functions for serialisation and deserialisation
 pub mod serialisation;
-
-mod async_log;

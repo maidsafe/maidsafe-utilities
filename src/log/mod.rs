@@ -81,18 +81,25 @@
 //! `Trace` and more severe. Thus `mod0` will log at `Error` level and `mod1` at `Trace` and more
 //! severe ones.
 
+pub use self::async_log::MSG_TERMINATOR;
+
+mod async_log;
+mod web_socket;
+
 use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::pattern::PatternLayout;
 use log4rs::toml::Creator;
 
+use std::borrow::Borrow;
 use std::fmt::{self, Display, Formatter};
 use std::path::Path;
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::ToSocketAddrs;
 use std::sync::{Once, ONCE_INIT};
 
-use async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
-                AsyncFileAppenderCreator, AsyncServerAppenderCreator, AsyncAppender};
+use self::async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
+                      AsyncFileAppenderCreator, AsyncServerAppender, AsyncServerAppenderCreator,
+                      AsyncWebSockAppender, AsyncWebSockAppenderCreator};
 use logger::LogLevelFilter;
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
@@ -113,6 +120,7 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
             creator.add_appender("async_console", Box::new(AsyncConsoleAppenderCreator));
             creator.add_appender("async_file", Box::new(AsyncFileAppenderCreator));
             creator.add_appender("async_server", Box::new(AsyncServerAppenderCreator));
+            creator.add_appender("async_web_socket", Box::new(AsyncWebSockAppenderCreator));
 
             log4rs::init_file(config_path, creator).map_err(|e| format!("{}", e))
         } else {
@@ -224,8 +232,6 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
-        use net2::TcpStreamExt;
-
         let (default_level, loggers) = match parse_loggers_from_env() {
             Ok((level, loggers)) => (level, loggers),
             Err(error) => {
@@ -244,25 +250,17 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
 
         let mut config = Config::builder(root).loggers(loggers);
 
-        let pattern = make_pattern(show_thread_name);
-
-        let stream = match TcpStream::connect(server_addr).map_err(|e| format!("{}", e)) {
-            Ok(stream) => {
-                match stream.set_nodelay(true) {
-                    Ok(()) => stream,
-                    Err(e) => {
-                        result = Err(format!{"{}", e});
-                        return;
-                    }
-                }
-            }
+        let server_appender = match AsyncServerAppender::builder(server_addr)
+                                        .pattern(make_pattern(show_thread_name))
+                                        .build()
+                                        .map_err(|e| format!("{}", e)) {
+            Ok(appender) => appender,
             Err(e) => {
                 result = Err(e);
                 return;
             }
         };
-        let server_appender = Appender::builder("server".to_owned(),
-                                                Box::new(AsyncAppender::new(stream, pattern)))
+        let server_appender = Appender::builder("server".to_owned(), Box::new(server_appender))
                                   .build();
 
         config = config.appender(server_appender);
@@ -291,12 +289,88 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
     result
 }
 
+/// Initialises the `env_logger` for output to a web socket and optionally to the console
+/// asynchronously. The log which goes to the web-socket will be both verbose and in JSON as
+/// filters should be present in web-servers to manipulate the output/view.
+///
+/// For further details, see the [module docs](index.html).
+pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
+                                          show_thread_name_in_console: bool,
+                                          log_to_console: bool)
+                                          -> Result<(), String> {
+    let mut result = Err("Logger already initialised".to_owned());
+
+    INITIALISE_LOGGER.call_once(|| {
+        let (default_level, loggers) = match parse_loggers_from_env() {
+            Ok((level, loggers)) => (level, loggers),
+            Err(error) => {
+                result = Err(format!("{}", error));
+                return;
+            }
+        };
+
+        let mut root = Root::builder(default_level).appender("server".to_owned());
+
+        if log_to_console {
+            root = root.appender("console".to_owned());
+        }
+
+        let root = root.build();
+
+        let mut config = Config::builder(root).loggers(loggers);
+
+        let server_appender = match AsyncWebSockAppender::builder(server_url)
+                                        .pattern(make_json_pattern())
+                                        .build()
+                                        .map_err(|e| format!("{}", e)) {
+            Ok(appender) => appender,
+            Err(e) => {
+                result = Err(e);
+                return;
+            }
+        };
+        let server_appender = Appender::builder("server".to_owned(), Box::new(server_appender))
+                                  .build();
+
+        config = config.appender(server_appender);
+
+        if log_to_console {
+            let console_appender = AsyncConsoleAppender::builder()
+                                       .pattern(make_pattern(show_thread_name_in_console))
+                                       .build();
+            let console_appender = Appender::builder("console".to_owned(),
+                                                     Box::new(console_appender))
+                                       .build();
+
+            config = config.appender(console_appender);
+        }
+
+        let config = match config.build().map_err(|e| format!("{}", e)) {
+            Ok(config) => config,
+            Err(e) => {
+                result = Err(e);
+                return;
+            }
+        };
+        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
+    });
+
+    result
+}
+
 fn make_pattern(show_thread_name: bool) -> PatternLayout {
     let pattern = if show_thread_name {
         "%l %d{%H:%M:%S.%f} %T [%M #FS#%f#FE#:%L] %m"
     } else {
         "%l %d{%H:%M:%S.%f} [%M #FS#%f#FE#:%L] %m"
     };
+
+    unwrap_result!(PatternLayout::new(pattern))
+}
+
+fn make_json_pattern() -> PatternLayout {
+    let pattern = "{\"level\":\"%l\",\"time\":\"%d{%H:%M:%S.%f}\",\"thread\":\"%T\",\"module\":\
+                   \"%M\",\"file\":\"%f\",\"line\":\"%L\",\"msg\":\"%m\"}";
 
     unwrap_result!(PatternLayout::new(pattern))
 }
@@ -374,9 +448,12 @@ mod test {
     use std::sync::mpsc;
     use std::time::Duration;
     use std::net::TcpListener;
+    use std::sync::mpsc::Sender;
+
+    use ws;
+    use ws::{Message, Handler};
     use logger::LogLevelFilter;
     use thread::RaiiThreadJoiner;
-    use async_log::MSG_TERMINATOR;
 
     #[test]
     fn test_parse_loggers() {
@@ -506,5 +583,64 @@ mod test {
 
         debug!("This message should not be found by default log level");
         error!("This is message 2");
+    }
+
+    // TODO(Spandan) This test passes in isolation but due to static nature of INITIALISE_LOGGER, if
+    // server_logging test runs first then this test will fail with "Logger already initialised"
+    // message. Presently ignoring.
+    #[test]
+    #[ignore]
+    fn web_socket_logging() {
+        const MSG_COUNT: usize = 3;
+
+        let (tx, rx) = mpsc::channel();
+
+        // Start Log Message Server
+        let _ = thread!("LogMessageWebServer", move || {
+            struct Server {
+                tx: Sender<()>,
+                count: usize,
+            }
+
+            impl Handler for Server {
+                fn on_message(&mut self, msg: Message) -> ws::Result<()> {
+                    assert!(unwrap_result!(msg.as_text())
+                                .contains(&format!("This is message {}", self.count)[..]));
+                    self.count += 1;
+                    if self.count == MSG_COUNT {
+                        unwrap_result!(self.tx.send(()));
+                    }
+
+                    Ok(())
+                }
+            }
+
+            unwrap_result!(ws::listen("127.0.0.1:44444", |_| {
+                Server {
+                    tx: tx.clone(),
+                    count: 0,
+                }
+            }));
+        });
+
+        // Allow sometime for server to start listening
+        thread::sleep(Duration::from_millis(100));
+
+        unwrap_result!(init_to_web_socket("ws://127.0.0.1:44444", false, false));
+
+        info!("This message should not be found by default log level");
+        warn!("This is message 0");
+        trace!("This message should not be found by default log level");
+        warn!("This is message 1");
+
+        // Some interval before the 3rd message to test if server logic above works fine with
+        // separate arrival of messages. Without sleep it will usually receive all 3 messages in a
+        // single read cycle
+        thread::sleep(Duration::from_millis(500));
+
+        debug!("This message should not be found by default log level");
+        error!("This is message 2");
+
+        unwrap_result!(rx.recv());
     }
 }
