@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.5.2]
+- Added ability to serialise and deserialise without being limited by the default size limit
+- Websocket logging now logs unique ids as well
+
 ## [0.5.1]
 - Fixed serialisation issue.
 - Fixed bug in logging.
