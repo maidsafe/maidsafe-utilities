@@ -90,6 +90,7 @@ use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::pattern::PatternLayout;
 use log4rs::toml::Creator;
+use rand;
 
 use std::borrow::Borrow;
 use std::fmt::{self, Display, Formatter};
@@ -320,7 +321,7 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
         let mut config = Config::builder(root).loggers(loggers);
 
         let server_appender = match AsyncWebSockAppender::builder(server_url)
-                                        .pattern(make_json_pattern())
+                                        .pattern(make_json_pattern(rand::random()))
                                         .build()
                                         .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
@@ -368,11 +369,13 @@ fn make_pattern(show_thread_name: bool) -> PatternLayout {
     unwrap_result!(PatternLayout::new(pattern))
 }
 
-fn make_json_pattern() -> PatternLayout {
-    let pattern = "{\"level\":\"%l\",\"time\":\"%d{%H:%M:%S.%f}\",\"thread\":\"%T\",\"module\":\
-                   \"%M\",\"file\":\"%f\",\"line\":\"%L\",\"msg\":\"%m\"}";
+fn make_json_pattern(unique_id: u64) -> PatternLayout {
+    let pattern = format!("{{\"id\":{},\"level\":\"%l\",\"time\":\"%d{{%H:%M:%S.%f}}\",\
+                           \"thread\":\"%T\",\"module\":\"%M\",\"file\":\"%f\",\"line\":\"%L\",\
+                           \"msg\":\"%m\"}}",
+                          unique_id);
 
-    unwrap_result!(PatternLayout::new(pattern))
+    unwrap_result!(PatternLayout::new(&pattern))
 }
 
 #[derive(Debug)]
@@ -553,7 +556,7 @@ mod test {
 
                     if found {
                         log_msgs.push(unwrap_result!(
-                            str::from_utf8(&read_buf[..search_frm_index]))
+                                str::from_utf8(&read_buf[..search_frm_index]))
                                           .to_owned());
                         read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
                         search_frm_index = 0;

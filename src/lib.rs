@@ -50,6 +50,7 @@ extern crate rustc_serialize;
 extern crate toml;
 #[macro_use]
 extern crate log as logger;
+extern crate rand;
 extern crate regex;
 extern crate ws;
 
