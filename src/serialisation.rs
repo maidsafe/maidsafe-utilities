@@ -44,14 +44,23 @@ quick_error! {
     }
 }
 
-/// Serialise an Encodable type.
+/// Serialise an Encodable type using default max size limit.
 pub fn serialise<T>(data: &T) -> Result<Vec<u8>, SerialisationError>
     where T: Encodable
 {
     encode(data, UPPER_LIMIT).map_err(From::from)
 }
 
-/// Deserialise a Decodable type.
+/// Serialise an Encodable type with max limit specified.
+pub fn serialise_with_limit<T>(data: &T,
+                               size_limit: SizeLimit)
+                               -> Result<Vec<u8>, SerialisationError>
+    where T: Encodable
+{
+    encode(data, size_limit).map_err(From::from)
+}
+
+/// Deserialise a Decodable type using default max size limit.
 pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
     where T: Decodable
 {
@@ -59,16 +68,41 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
     deserialise_from(&mut data)
 }
 
-/// Serialise an Encodable type directly into a Write.
+/// Deserialise a Decodable type with max size limit specified.
+pub fn deserialise_with_limit<T>(data: &[u8],
+                                 size_limit: SizeLimit)
+                                 -> Result<T, SerialisationError>
+    where T: Decodable
+{
+    let mut data = Cursor::new(data);
+    deserialise_from_with_limit(&mut data, size_limit)
+}
+
+/// Serialise an Encodable type directly into a Write with default size limit.
 pub fn serialise_into<T: Encodable, W: Write>(data: &T,
                                               write: &mut W)
                                               -> Result<(), SerialisationError> {
     encode_into(data, write, UPPER_LIMIT).map_err(From::from)
 }
 
-/// Deserialise a Decodable type directly from a Read.
+/// Serialise an Encodable type directly into a Write with max size limit specified.
+pub fn serialise_into_with_limit<T: Encodable, W: Write>(data: &T,
+                                                         write: &mut W,
+                                                         size_limit: SizeLimit)
+                                                         -> Result<(), SerialisationError> {
+    encode_into(data, write, size_limit).map_err(From::from)
+}
+
+/// Deserialise a Decodable type directly from a Read with default size limit.
 pub fn deserialise_from<R: Read, T: Decodable>(read: &mut R) -> Result<T, SerialisationError> {
     decode_from(read, UPPER_LIMIT).map_err(From::from)
+}
+
+/// Deserialise a Decodable type directly from a Read with max size limit specified.
+pub fn deserialise_from_with_limit<R: Read, T: Decodable>(read: &mut R,
+                                                          size_limit: SizeLimit)
+                                                          -> Result<T, SerialisationError> {
+    decode_from(read, size_limit).map_err(From::from)
 }
 
 #[cfg(test)]
@@ -145,5 +179,22 @@ mod test {
                deserialise_from::<Cursor<_>, Vec<u64>>(&mut serialised) {} else {
             panic!("Expected size limit error.");
         }
+
+        // Try to serialise data above default limit with size limit specified
+        serialised_data = unwrap_result!(serialise_with_limit(&original_data, SizeLimit::Infinite));
+
+        buffer = Vec::with_capacity(serialised_data.len());
+        unwrap_result!(serialise_into_with_limit(&original_data, &mut buffer, SizeLimit::Infinite));
+
+        assert_eq!(serialised_data, buffer);
+
+        // Try to deserialise data above default limit with size limit specified
+        let deserialised_data_0 = unwrap_result!(deserialise_with_limit(&serialised_data,
+                                                                        SizeLimit::Infinite));
+        let deserialised_data_1 =
+            unwrap_result!(deserialise_from_with_limit(&mut Cursor::new(buffer),
+                                                       SizeLimit::Infinite));
+
+        assert_eq!(deserialised_data_0, deserialised_data_1);
     }
 }
