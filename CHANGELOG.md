@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.5.3]
+- Logging of date and time to web-server is now an ISO format with time-zone offset
+- Unique id in log messages is string instead of u64 in JSON as 64 bit numbers are not supported out of the box in NodeJS web-servers.
+
 ## [0.5.2]
 - Added ability to serialise and deserialise without being limited by the default size limit
 - Websocket logging now logs unique ids as well
