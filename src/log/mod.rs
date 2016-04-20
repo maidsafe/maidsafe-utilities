@@ -321,7 +321,7 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
         let mut config = Config::builder(root).loggers(loggers);
 
         let server_appender = match AsyncWebSockAppender::builder(server_url)
-                                        .pattern(make_json_pattern(rand::random()))
+                                        .pattern(async_log::make_json_pattern(rand::random()))
                                         .build()
                                         .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
@@ -367,14 +367,6 @@ fn make_pattern(show_thread_name: bool) -> PatternLayout {
     };
 
     unwrap_result!(PatternLayout::new(pattern))
-}
-
-fn make_json_pattern(unique_id: u64) -> PatternLayout {
-    let pattern = format!("{{\"id\":\"{}\",\"level\":\"%l\",\"time\":\"%d\",\"thread\":\"%T\",\
-                           \"module\":\"%M\",\"file\":\"%f\",\"line\":\"%L\",\"msg\":\"%m\"}}",
-                          unique_id);
-
-    unwrap_result!(PatternLayout::new(&pattern))
 }
 
 #[derive(Debug)]
