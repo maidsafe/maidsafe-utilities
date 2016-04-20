@@ -370,9 +370,8 @@ fn make_pattern(show_thread_name: bool) -> PatternLayout {
 }
 
 fn make_json_pattern(unique_id: u64) -> PatternLayout {
-    let pattern = format!("{{\"id\":{},\"level\":\"%l\",\"time\":\"%d{{%H:%M:%S.%f}}\",\
-                           \"thread\":\"%T\",\"module\":\"%M\",\"file\":\"%f\",\"line\":\"%L\",\
-                           \"msg\":\"%m\"}}",
+    let pattern = format!("{{\"id\":\"{}\",\"level\":\"%l\",\"time\":\"%d\",\"thread\":\"%T\",\
+                           \"module\":\"%M\",\"file\":\"%f\",\"line\":\"%L\",\"msg\":\"%m\"}}",
                           unique_id);
 
     unwrap_result!(PatternLayout::new(&pattern))
