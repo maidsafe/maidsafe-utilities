@@ -20,15 +20,19 @@ extern crate maidsafe_utilities;
 #[macro_use]
 extern crate log as logger;
 
+use std::thread;
+use std::time::Duration;
 use maidsafe_utilities::log;
 
 fn main() {
     unwrap_result!(log::init(true));
-    // let _ = log::init_to_file_async(true, "main.log", true);
 
     trace!("Hello world");
     debug!("Hello world");
     info!("Hello world");
     warn!("Hello world");
     error!("Hello world");
+
+    // Give some time to the async logger to complete
+    thread::sleep(Duration::from_millis(100));
 }

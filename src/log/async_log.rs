@@ -188,7 +188,7 @@ pub struct AsyncConsoleAppenderCreator;
 
 impl CreateAppender for AsyncConsoleAppenderCreator {
     fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
-        let pattern = try!(parse_pattern(&mut config));
+        let pattern = try!(parse_pattern(&mut config, false));
         Ok(Box::new(AsyncConsoleAppender::builder().pattern(pattern).build()))
     }
 }
@@ -209,7 +209,7 @@ impl CreateAppender for AsyncFileAppenderCreator {
             None => true,
         };
 
-        let pattern = try!(parse_pattern(&mut config));
+        let pattern = try!(parse_pattern(&mut config, false));
         let appender = try!(AsyncFileAppender::builder(path)
                                 .pattern(pattern)
                                 .append(append)
@@ -235,7 +235,7 @@ impl CreateAppender for AsyncServerAppenderCreator {
             Some(_) => return Err(Box::new(ConfigError("`no_delay` must be a boolean".to_owned()))),
             None => true,
         };
-        let pattern = try!(parse_pattern(&mut config));
+        let pattern = try!(parse_pattern(&mut config, false));
 
         Ok(Box::new(try!(AsyncServerAppender::builder(server_addr)
                              .pattern(pattern)
@@ -255,7 +255,7 @@ impl CreateAppender for AsyncWebSockAppenderCreator {
             }
             None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
         };
-        let pattern = try!(parse_pattern(&mut config));
+        let pattern = try!(parse_pattern(&mut config, true));
 
         Ok(Box::new(try!(AsyncWebSockAppender::builder(server_url)
                              .pattern(pattern)
@@ -263,12 +263,28 @@ impl CreateAppender for AsyncWebSockAppenderCreator {
     }
 }
 
-fn parse_pattern(config: &mut Table) -> Result<PatternLayout, Box<Error>> {
+fn parse_pattern(config: &mut Table, is_websocket: bool) -> Result<PatternLayout, Box<Error>> {
+    use rand;
+
     match config.remove("pattern") {
         Some(Value::String(pattern)) => Ok(try!(PatternLayout::new(&pattern))),
         Some(_) => Err(Box::new(ConfigError("`pattern` must be a string".to_owned()))),
-        None => Ok(PatternLayout::default()),
+        None => {
+            if is_websocket {
+                Ok(make_json_pattern(rand::random()))
+            } else {
+                Ok(PatternLayout::default())
+            }
+        }
     }
+}
+
+pub fn make_json_pattern(unique_id: u64) -> PatternLayout {
+    let pattern = format!("{{\"id\":\"{}\",\"level\":\"%l\",\"time\":\"%d\",\"thread\":\"%T\",\
+                           \"module\":\"%M\",\"file\":\"%f\",\"line\":\"%L\",\"msg\":\"%m\"}}",
+                          unique_id);
+
+    unwrap_result!(PatternLayout::new(&pattern))
 }
 
 #[derive(Debug)]
