@@ -1,5 +1,10 @@
 # MaidSafe Utilities - Change Log
 
+## [0.5.4]
+- Read the config file from the binary directory instead of the current one.
+- Websocket logging to the web-server writes the complete and verbose JSON when
+  no pattern is specified in `log.toml` for async_web_socket.
+
 ## [0.5.3]
 - Logging of date and time to web-server is now an ISO format with time-zone offset
 - Unique id in log messages is string instead of u64 in JSON as 64 bit numbers are not supported out of the box in NodeJS web-servers.
