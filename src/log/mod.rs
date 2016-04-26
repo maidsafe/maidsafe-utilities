@@ -93,6 +93,7 @@ use log4rs::toml::Creator;
 use rand;
 
 use std::borrow::Borrow;
+use std::env;
 use std::fmt::{self, Display, Formatter};
 use std::path::Path;
 use std::net::ToSocketAddrs;
@@ -114,7 +115,8 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
-        let config_path = Path::new(CONFIG_FILE);
+        let mut config_path = unwrap_result!(env::current_exe());
+        config_path.set_file_name(CONFIG_FILE);
 
         result = if config_path.is_file() {
             let mut creator = Creator::default();
