@@ -1,4 +1,4 @@
-// Copyright 2016 MaidSafe.net limited.
+// Copyright 2015 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under (1) the MaidSafe.net Commercial License,
 // version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
@@ -16,23 +16,35 @@
 // relating to use of the SAFE Network Software.
 
 #[macro_use]
-extern crate maidsafe_utilities;
+extern crate log;
 #[macro_use]
-extern crate log as logger;
+extern crate maidsafe_utilities;
 
 use std::thread;
 use std::time::Duration;
-use maidsafe_utilities::log;
+use maidsafe_utilities::log as safe_log;
 
 fn main() {
-    unwrap_result!(log::init(true));
+    unwrap_result!(safe_log::init(false));
 
-    trace!("Hello world");
-    debug!("Hello world");
-    info!("Hello world");
-    warn!("Hello world");
-    error!("Hello world");
+    trace!("This is a log message.");
+    debug!("This is a log message.");
+    info!("This is a log message.");
+    warn!("This is a log message.");
+    error!("This is a log message.");
 
-    // Give some time to the async logger to complete
+    abc::log_msgs();
+
+    // Allow async loggers to function in the background thread
     thread::sleep(Duration::from_millis(100));
+}
+
+mod abc {
+    pub fn log_msgs() {
+        trace!("This is a log message.");
+        debug!("This is a log message.");
+        info!("This is a log message.");
+        warn!("This is a log message.");
+        error!("This is a log message.");
+    }
 }
