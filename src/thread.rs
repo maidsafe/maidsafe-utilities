@@ -68,12 +68,9 @@ macro_rules! thread {
 
 #[cfg(test)]
 mod test {
-    extern crate time;
-
     use super::*;
     use std::thread;
-    use std::time::Duration;
-    use self::time::SteadyTime;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn raii_thread_joiner() {
@@ -82,31 +79,27 @@ mod test {
         const SLEEP_DURATION_MANAGED: u64 = SLEEP_DURATION_DAEMON * 3;
 
         {
-            let time_before = SteadyTime::now();
+            let time_before = Instant::now();
             {
                 let _ = thread!("JoinerTestDaemon", move || {
                     thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
                 });
             }
-            let time_after = SteadyTime::now();
+            let diff = time_before.elapsed();
 
-            let diff = time_after - time_before;
-
-            assert!(diff < time::Duration::milliseconds(SLEEP_DURATION_DAEMON as i64));
+            assert!(diff < Duration::from_millis(SLEEP_DURATION_DAEMON));
         }
 
         {
-            let time_before = SteadyTime::now();
+            let time_before = Instant::now();
             {
                 let _raii_joiner = RaiiThreadJoiner::new(thread!("JoinerTestManaged", move || {
                     thread::sleep(Duration::from_millis(SLEEP_DURATION_MANAGED));
                 }));
             }
-            let time_after = SteadyTime::now();
+            let diff = time_before.elapsed();
 
-            let diff = time_after - time_before;
-
-            assert!(diff >= time::Duration::milliseconds(SLEEP_DURATION_MANAGED as i64));
+            assert!(diff >= Duration::from_millis(SLEEP_DURATION_MANAGED));
         }
     }
 }
