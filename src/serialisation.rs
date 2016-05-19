@@ -114,9 +114,7 @@ mod test {
 
     #[test]
     fn serialise_deserialise() {
-        let original_data = (vec![0u8, 1, 3, 9],
-                             vec![-1i64, 888, -8765],
-                             "Some-String".to_owned());
+        let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
 
         let serialised_data = unwrap_result!(serialise(&original_data));
         let deserialised_data: (Vec<u8>, Vec<i64>, String) =
@@ -126,9 +124,7 @@ mod test {
 
     #[test]
     fn serialise_into_deserialise_from() {
-        let original_data = (vec![0u8, 1, 3, 9],
-                             vec![-1i64, 888, -8765],
-                             "Some-String".to_owned());
+        let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
         let mut serialised_data = vec![];
         unwrap_result!(serialise_into(&original_data, &mut serialised_data));
 

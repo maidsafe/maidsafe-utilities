@@ -101,10 +101,10 @@ impl AsyncFileAppenderBuilder {
 
     pub fn build(self) -> io::Result<AsyncAppender> {
         let file = try!(OpenOptions::new()
-                            .write(true)
-                            .append(self.append)
-                            .create(true)
-                            .open(self.path));
+            .write(true)
+            .append(self.append)
+            .create(true)
+            .open(self.path));
 
         Ok(AsyncAppender::new(file, self.pattern))
     }
@@ -211,9 +211,9 @@ impl CreateAppender for AsyncFileAppenderCreator {
 
         let pattern = try!(parse_pattern(&mut config, false));
         let appender = try!(AsyncFileAppender::builder(path)
-                                .pattern(pattern)
-                                .append(append)
-                                .build());
+            .pattern(pattern)
+            .append(append)
+            .build());
 
         Ok(Box::new(appender))
     }
@@ -238,9 +238,9 @@ impl CreateAppender for AsyncServerAppenderCreator {
         let pattern = try!(parse_pattern(&mut config, false));
 
         Ok(Box::new(try!(AsyncServerAppender::builder(server_addr)
-                             .pattern(pattern)
-                             .no_delay(no_delay)
-                             .build())))
+            .pattern(pattern)
+            .no_delay(no_delay)
+            .build())))
     }
 }
 
@@ -258,8 +258,8 @@ impl CreateAppender for AsyncWebSockAppenderCreator {
         let pattern = try!(parse_pattern(&mut config, true));
 
         Ok(Box::new(try!(AsyncWebSockAppender::builder(server_url)
-                             .pattern(pattern)
-                             .build())))
+            .pattern(pattern)
+            .build())))
     }
 }
 

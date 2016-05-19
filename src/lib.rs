@@ -43,21 +43,20 @@
 #![cfg_attr(feature="clippy", deny(clippy, clippy_pedantic))]
 #![cfg_attr(feature="clippy", allow(use_debug))]
 
-extern crate net2;
 extern crate bincode;
-extern crate log4rs;
-extern crate rustc_serialize;
-extern crate toml;
 #[macro_use]
 extern crate log as logger;
-extern crate rand;
-extern crate regex;
-extern crate ws;
-
+extern crate log4rs;
+extern crate net2;
 #[allow(unused_extern_crates)]
 // Needed because the crate is only used for macros
 #[macro_use]
 extern crate quick_error;
+extern crate rand;
+extern crate regex;
+extern crate rustc_serialize;
+extern crate toml;
+extern crate ws;
 
 #[macro_use]
 mod unwrap;
@@ -65,10 +64,12 @@ mod unwrap;
 /// Utilities related to threading.
 #[macro_use]
 pub mod thread;
-
-/// Allows initialising the `env_logger` with a standard message format.
-pub mod log;
+mod big_endian_sip_hash;
 /// Utilities related to event-subsetting.
 pub mod event_sender;
+/// Allows initialising the `env_logger` with a standard message format.
+pub mod log;
 /// Functions for serialisation and deserialisation
 pub mod serialisation;
+
+pub use big_endian_sip_hash::big_endian_sip_hash;
