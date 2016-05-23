@@ -1,5 +1,10 @@
 # MaidSafe Utilities - Change Log
 
+## [0.6.0]
+- Added endian-agnostic Sip hash function.
+- Added test for log.toml file.
+- Replaced usage of `time` crate with `std::time`.
+
 ## [0.5.4]
 - Read the config file from the binary directory instead of the current one.
 - Websocket logging to the web-server writes the complete and verbose JSON when
