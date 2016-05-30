@@ -40,14 +40,14 @@
 
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
-#![cfg_attr(feature="clippy", deny(clippy, clippy_pedantic))]
-#![cfg_attr(feature="clippy", allow(use_debug))]
+#![cfg_attr(feature="clippy", deny(clippy, unicode_not_nfc, wrong_pub_self_convention,
+                                   option_unwrap_used))]
+#![cfg_attr(feature="clippy", allow(use_debug, doc_markdown))]
 
 extern crate bincode;
 #[macro_use]
 extern crate log as logger;
 extern crate log4rs;
-extern crate net2;
 #[allow(unused_extern_crates)]
 // Needed because the crate is only used for macros
 #[macro_use]

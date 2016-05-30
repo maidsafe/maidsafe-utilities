@@ -23,7 +23,8 @@ use rustc_serialize::Encodable;
 /// Generates a deterministic Sip hash from `data`, regardless of the endianness of the host
 /// machine.
 pub fn big_endian_sip_hash<T: Encodable>(data: &T) -> u64 {
-    let encoded = bincode::rustc_serialize::encode(data, SizeLimit::Infinite).unwrap_or(vec![]);
+    let encoded =
+        bincode::rustc_serialize::encode(data, SizeLimit::Infinite).ok().unwrap_or_else(Vec::new);
     let mut hasher = SipHasher::new();
     hasher.write(&encoded);
     hasher.finish()

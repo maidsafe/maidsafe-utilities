@@ -146,8 +146,6 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
     }
 
     pub fn build(self) -> io::Result<AsyncAppender> {
-        use net2::TcpStreamExt;
-
         let stream = try!(TcpStream::connect(self.addr));
         try!(stream.set_nodelay(self.no_delay));
         Ok(AsyncAppender::new(stream, self.pattern))
@@ -384,7 +382,7 @@ impl SyncWrite for File {
 
 impl SyncWrite for TcpStream {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
-        let _ = try!(self.write_all(&buf));
+        try!(self.write_all(&buf));
         self.write_all(&MSG_TERMINATOR[..])
     }
 }

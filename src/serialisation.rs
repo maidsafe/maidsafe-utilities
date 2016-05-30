@@ -185,12 +185,12 @@ mod test {
         assert_eq!(serialised_data, buffer);
 
         // Try to deserialise data above default limit with size limit specified
-        let deserialised_data_0 = unwrap_result!(deserialise_with_limit(&serialised_data,
+        let deserialised_data_0: Vec<u64> = unwrap_result!(deserialise_with_limit(&serialised_data,
                                                                         SizeLimit::Infinite));
-        let deserialised_data_1 =
+        assert_eq!(original_data, deserialised_data_0);
+        let deserialised_data_1: Vec<u64> =
             unwrap_result!(deserialise_from_with_limit(&mut Cursor::new(buffer),
                                                        SizeLimit::Infinite));
-
-        assert_eq!(deserialised_data_0, deserialised_data_1);
+        assert_eq!(original_data, deserialised_data_1);
     }
 }
