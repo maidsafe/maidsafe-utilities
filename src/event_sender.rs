@@ -118,7 +118,7 @@ pub enum EventSenderError<Category, EventSubset> {
 ///     assert!(ui_event_sender.send(UiEvent::CreateDirectory).is_ok());
 ///     assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 /// # }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct EventSender<Category, EventSubset> {
     event_tx: mpsc::Sender<EventSubset>,
     event_category: Category,
@@ -151,6 +151,32 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category
         Ok(())
     }
 }
+
+// (Spandan) Need to manually implement this because the default derived one seems faulty in that
+// it requires EventSubset to be clonable even though mpsc::Sender<EventSubset> does
+// not require EventSubset to be clonable for itself being cloned.
+impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> Clone for EventSender<Category,
+                                                                                  EventSubset> {
+    fn clone(&self) -> EventSender<Category, EventSubset> {
+        EventSender {
+            event_tx: self.event_tx.clone(),
+            event_category: self.event_category.clone(),
+            event_category_tx: self.event_category_tx.clone(),
+        }
+    }
+}
+
+/// Category of events meant for a MaidSafe observer listening to both, routing and crust events
+#[derive(Clone, Debug)]
+pub enum MaidSafeEventCategory {
+    /// Used by Crust to indicate a Crust Event has been fired
+    Crust,
+    /// Used by Routing to indicate a Routing Event has been fired
+    Routing,
+}
+
+/// Observer that Crust (and users of Routing if required) must allow to be registered
+pub type MaidSafeObserver<EventSubset> = EventSender<MaidSafeEventCategory, EventSubset>;
 
 #[cfg(test)]
 mod test {
