@@ -534,21 +534,14 @@ mod test {
                 read_buf.extend_from_slice(&scratch_buf[..bytes_rxd]);
 
                 while read_buf.len() - search_frm_index >= MSG_TERMINATOR.len() {
-                    let mut found = true;
-                    for i in search_frm_index..search_frm_index + MSG_TERMINATOR.len() {
-                        if read_buf[i] != MSG_TERMINATOR[i - search_frm_index] {
-                            search_frm_index += 1;
-                            found = false;
-                            break;
-                        }
-                    }
-
-                    if found {
+                    if read_buf[search_frm_index..].starts_with(&MSG_TERMINATOR) {
                         log_msgs.push(unwrap_result!(
                                 str::from_utf8(&read_buf[..search_frm_index]))
                             .to_owned());
                         read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
                         search_frm_index = 0;
+                    } else {
+                        search_frm_index += 1;
                     }
                 }
             }
@@ -596,8 +589,8 @@ mod test {
 
             impl Handler for Server {
                 fn on_message(&mut self, msg: Message) -> ws::Result<()> {
-                    assert!(unwrap_result!(msg.as_text())
-                        .contains(&format!("This is message {}", self.count)[..]));
+                    let text = unwrap_result!(msg.as_text());
+                    assert!(text.contains(&format!("This is message {}", self.count)[..]));
                     self.count += 1;
                     if self.count == MSG_COUNT {
                         unwrap_result!(self.tx.send(()));
