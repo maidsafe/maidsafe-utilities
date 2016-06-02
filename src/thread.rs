@@ -15,6 +15,7 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+use std;
 use std::thread::JoinHandle;
 
 /// A RAII style thread joiner. The destruction of an instance of this type will block until
@@ -64,6 +65,32 @@ macro_rules! thread {
         unwrap_result!(::std::thread::Builder::new().name($thread_name.to_owned())
                                                     .spawn($entry_point))
     }
+}
+
+/// This function is intended to be used in all cases where we want to spawn a new thread with a
+/// given name and panic if we fail to create the thread.
+///
+/// #Examples
+///
+/// ```
+/// let _ = maidsafe_utilities::thread::spawn("DaemonThread", move || {
+///     std::thread::sleep(std::time::Duration::from_millis(10));
+/// });
+///
+/// let sleep_duration_ms = 500;
+/// let _raii_joiner = maidsafe_utilities::thread
+///                                      ::RaiiThreadJoiner::new(maidsafe_utilities::thread::spawn("ManagedThread", move || {
+///     std::thread::sleep(std::time::Duration::from_millis(sleep_duration_ms));
+/// }));
+/// ```
+pub fn spawn<S, F>(thread_name: S, func: F) -> JoinHandle<()>
+    where S: Into<String>,
+          F: FnOnce() + Send + 'static
+{
+    let thread_name: String = thread_name.into();
+    let t = std::thread::Builder::new().name(thread_name)
+                                       .spawn(func);
+    unwrap_result!(t)
 }
 
 #[cfg(test)]
