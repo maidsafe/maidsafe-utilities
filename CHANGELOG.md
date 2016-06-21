@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.7.0]
+- Fixed Clippy warnings.
+- Added `SeededRng` type.
+
 ## [0.6.0]
 - Added endian-agnostic Sip hash function.
 - Added test for log.toml file.
