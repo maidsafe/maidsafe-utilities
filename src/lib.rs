@@ -26,9 +26,9 @@
 
 // For explanation of lint checks, run `rustc -W help` or see
 // https://github.com/maidsafe/QA/blob/master/Documentation/Rust%20Lint%20Checks.md
-#![forbid(bad_style, exceeding_bitshifts, mutable_transmutes, no_mangle_const_items,
-          unknown_crate_types, warnings)]
-#![deny(deprecated, drop_with_repr_extern, improper_ctypes, missing_docs,
+#![forbid(exceeding_bitshifts, mutable_transmutes, no_mangle_const_items, unknown_crate_types,
+          warnings)]
+#![deny(bad_style, deprecated, drop_with_repr_extern, improper_ctypes, missing_docs,
         non_shorthand_field_patterns, overflowing_literals, plugin_as_library,
         private_no_mangle_fns, private_no_mangle_statics, stable_features, unconditional_recursion,
         unknown_lints, unsafe_code, unused, unused_allocation, unused_attributes,
@@ -46,6 +46,8 @@
 
 extern crate bincode;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log as logger;
 extern crate log4rs;
 #[allow(unused_extern_crates)]
@@ -56,10 +58,12 @@ extern crate rand;
 extern crate regex;
 extern crate rustc_serialize;
 extern crate toml;
+#[macro_use]
+extern crate unwrap;
 extern crate ws;
 
 #[macro_use]
-mod unwrap;
+mod unwrap_deprecated;
 
 /// Utilities related to threading.
 #[macro_use]

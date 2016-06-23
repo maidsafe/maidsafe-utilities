@@ -15,10 +15,37 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use rand::{self, Rng, SeedableRng, XorShiftRng};
+
+lazy_static! {
+    static ref IS_INITIALISED: AtomicBool = AtomicBool::new(false);
+    static ref SEED: Mutex<[u32; 4]> =
+        Mutex::new([rand::random(), rand::random(), rand::random(), rand::random()]);
+}
+
+/// Error indicating that the static seed has already been initialised to a different value.
+#[derive(Debug)]
+pub struct AlreadySeeded;
+
+impl Display for AlreadySeeded {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter,
+               "The static seed has already been initialised to a different value via a call to \
+                `SeededRng::new()` or `SeededRng::from_seed()`.")
+    }
+}
+
+impl Error for AlreadySeeded {
+    fn description(&self) -> &str {
+        "already seeded"
+    }
+}
 
 /// A [fast pseudorandom number generator]
 /// (https://doc.rust-lang.org/rand/rand/struct.XorShiftRng.html) that allows seeding and prints the
@@ -30,17 +57,33 @@ pub struct SeededRng {
 
 impl SeededRng {
     /// Construct a new `SeededRng` using a seed generated from cryptographically secure random
-    /// data.
+    /// data.  The seed is only set once for the whole process, so every call to this will yield
+    /// internal RNGs which are all seeded identically.
     pub fn new() -> Self {
-        Self::from_seed([rand::random(), rand::random(), rand::random(), rand::random()])
-    }
-
-    /// Construct a new `SeededRng` using `seed`.
-    pub fn from_seed(seed: [u32; 4]) -> Self {
+        let seed: [u32; 4] = *unwrap!(SEED.lock());
+        IS_INITIALISED.store(true, Ordering::Relaxed);
         SeededRng {
             seed: seed,
             inner: XorShiftRng::from_seed(seed),
         }
+    }
+
+    /// Construct a new `SeededRng` using `seed`.
+    pub fn from_seed(seed: [u32; 4]) -> Result<Self, AlreadySeeded> {
+        let mut current_seed = &mut *unwrap!(SEED.lock());
+        if IS_INITIALISED.load(Ordering::Relaxed) {
+            if *current_seed != seed {
+                return Err(AlreadySeeded);
+            }
+        } else {
+            *current_seed = seed;
+            IS_INITIALISED.store(true, Ordering::Relaxed);
+        }
+
+        Ok(SeededRng {
+            seed: *current_seed,
+            inner: XorShiftRng::from_seed(*current_seed),
+        })
     }
 
     /// Construct a new [`XorShiftRng`](https://doc.rust-lang.org/rand/rand/struct.XorShiftRng.html)
@@ -97,8 +140,8 @@ mod tests {
     #[test]
     fn seeded_rng() {
         let seed = [0, 1, 2, 3];
-        let mut seeded_rng1 = SeededRng::from_seed(seed);
-        let mut seeded_rng2 = SeededRng::from_seed(seed);
+        let mut seeded_rng1 = unwrap!(SeededRng::from_seed(seed));
+        let mut seeded_rng2 = SeededRng::new();
         let expected = 12884903946;
         assert_eq!(seeded_rng1.next_u64(), expected);
         assert_eq!(seeded_rng2.next_u64(), expected);
@@ -114,5 +157,7 @@ mod tests {
         let mut rng2_from_seeded_rng2 = seeded_rng2.new_rng();
         assert_eq!(rng1_from_seeded_rng2.next_u64(), expected1);
         assert_eq!(rng2_from_seeded_rng2.next_u64(), expected2);
+
+        assert!(SeededRng::from_seed([3, 2, 1, 0]).is_err());
     }
 }
