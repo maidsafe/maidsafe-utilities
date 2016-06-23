@@ -11,7 +11,8 @@ version = "0.7.0"
 
 [dependencies]
 bincode = "~0.5.7"
-clippy = {version = "~0.0.76", optional = true}
+clippy = {version = "~0.0.77", optional = true}
+lazy_static = "~0.2.1"
 log = "~0.3.6"
 log4rs = "~0.3.3"
 quick-error = "1.0.0"
@@ -19,4 +20,5 @@ rand = "~0.3.14"
 regex = "~0.1.71"
 rustc-serialize = "~0.3.19"
 toml = "~0.1.30"
+unwrap = "~1.1.0"
 ws = "~0.5.0"
