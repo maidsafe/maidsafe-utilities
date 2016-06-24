@@ -1,5 +1,10 @@
 # MaidSafe Utilities - Change Log
 
+## [0.7.1]
+- Replaced `thread!` macro with `named()` function.
+- Renamed `RaiiThreadJoiner` to `Joiner`.
+- Modified `SeededRng::from_seed()` to panic rather than return an error.
+
 ## [0.7.0]
 - Fixed Clippy warnings.
 - Added `SeededRng` type.
