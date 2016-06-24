@@ -20,22 +20,31 @@ use std::thread::JoinHandle;
 
 /// A RAII style thread joiner. The destruction of an instance of this type will block until
 /// the thread it is managing has joined.
-pub struct RaiiThreadJoiner {
+pub struct Joiner {
     joiner: Option<JoinHandle<()>>,
 }
 
-impl RaiiThreadJoiner {
+/// Deprecated name for `Joiner`
+pub type RaiiThreadJoiner = Joiner;
+
+impl Joiner {
     /// Create a new instance of self-managing thread joiner
-    pub fn new(joiner: JoinHandle<()>) -> RaiiThreadJoiner {
-        RaiiThreadJoiner { joiner: Some(joiner) }
+    pub fn new(joiner: JoinHandle<()>) -> Joiner {
+        Joiner { joiner: Some(joiner) }
+    }
+
+    /// Releases the `Joiner` by detaching the thread.
+    pub fn detach(mut self) {
+        let _ = unwrap_option!(self.joiner.take(),
+                               "Programming error: please report this as a bug.");
     }
 }
 
-impl Drop for RaiiThreadJoiner {
+impl Drop for Joiner {
     fn drop(&mut self) {
-        let joiner = unwrap_option!(self.joiner.take(),
-                                    "Programming error: please report this as a bug.");
-        unwrap_result!(joiner.join());
+        if let Some(joiner) = self.joiner.take() {
+            unwrap_result!(joiner.join());
+        }
     }
 }
 
@@ -54,7 +63,7 @@ impl Drop for RaiiThreadJoiner {
 ///
 /// let sleep_duration_ms = 500;
 /// let _raii_joiner = maidsafe_utilities::thread
-///                                      ::RaiiThreadJoiner::new(thread!("ManagedThread", move || {
+///                                      ::Joiner::new(thread!("ManagedThread", move || {
 ///     std::thread::sleep(std::time::Duration::from_millis(sleep_duration_ms));
 /// }));
 /// # }
@@ -78,19 +87,18 @@ macro_rules! thread {
 /// });
 ///
 /// let sleep_duration_ms = 500;
-/// let _raii_joiner = maidsafe_utilities::thread
-///                                      ::RaiiThreadJoiner::new(maidsafe_utilities::thread::named("ManagedThread", move || {
+/// let _raii_joiner = maidsafe_utilities::thread::named("ManagedThread", move || {
 ///     std::thread::sleep(std::time::Duration::from_millis(sleep_duration_ms));
-/// }));
+/// });
 /// ```
-pub fn named<S, F>(thread_name: S, func: F) -> JoinHandle<()>
+pub fn named<S, F>(thread_name: S, func: F) -> Joiner
     where S: Into<String>,
           F: FnOnce() + Send + 'static
 {
     let thread_name: String = thread_name.into();
     let join_handle_res = std::thread::Builder::new().name(thread_name)
                                                .spawn(func);
-    unwrap_result!(join_handle_res)
+    Joiner::new(unwrap_result!(join_handle_res))
 }
 
 #[cfg(test)]
@@ -120,7 +128,7 @@ mod test {
         {
             let time_before = Instant::now();
             {
-                let _raii_joiner = RaiiThreadJoiner::new(thread!("JoinerTestManaged", move || {
+                let _raii_joiner = Joiner::new(thread!("JoinerTestManaged", move || {
                     thread::sleep(Duration::from_millis(SLEEP_DURATION_MANAGED));
                 }));
             }

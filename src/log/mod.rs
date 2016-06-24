@@ -49,7 +49,7 @@
 //! #[macro_use]
 //! extern crate maidsafe_utilities;
 //! use std::thread;
-//! use maidsafe_utilities::thread::RaiiThreadJoiner;
+//! use maidsafe_utilities::thread::Joiner;
 //!
 //! mod my_mod {
 //!     pub fn show_warning() {
@@ -65,8 +65,8 @@
 //!     let unnamed = thread::spawn(move || info!("Message in unnamed thread"));
 //!     let _ = unnamed.join();
 //!
-//!     let _named = RaiiThreadJoiner::new(thread!("Worker",
-//!                                                move || error!("Message in named thread")));
+//!     let _named = Joiner::new(thread!("Worker",
+//!                                      move || error!("Message in named thread")));
 //!
 //!     // WARN 16:10:44.989712300 <main> [example::my_mod main.rs:10] A warning
 //!     // INFO 16:10:44.990716600 <unnamed> [example main.rs:19] Message in unnamed thread
@@ -445,7 +445,7 @@ mod test {
     use ws;
     use ws::{Message, Handler};
     use logger::LogLevelFilter;
-    use thread::RaiiThreadJoiner;
+    use thread::Joiner;
 
     #[test]
     fn test_parse_loggers() {
@@ -512,7 +512,7 @@ mod test {
         let (tx, rx) = mpsc::channel();
 
         // Start Log Message Server
-        let _raii_joiner = RaiiThreadJoiner::new(thread!("LogMessageServer", move || {
+        let _raii_joiner = Joiner::new(thread!("LogMessageServer", move || {
             use std::io::Read;
 
             let listener = unwrap_result!(TcpListener::bind("127.0.0.1:55555"));

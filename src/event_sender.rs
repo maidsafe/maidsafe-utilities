@@ -112,7 +112,7 @@ pub enum EventSenderError<Category, EventSubset> {
 ///         }
 ///     });
 ///
-///     let _raii_joiner = maidsafe_utilities::thread::RaiiThreadJoiner::new(joiner);
+///     let _raii_joiner = maidsafe_utilities::thread::Joiner::new(joiner);
 ///
 ///     assert!(nw_event_sender.send(NetworkEvent::Connected).is_ok());
 ///     assert!(ui_event_sender.send(UiEvent::CreateDirectory).is_ok());
@@ -244,7 +244,7 @@ mod test {
             }
         });
 
-        let _raii_joiner = ::thread::RaiiThreadJoiner::new(joiner);
+        let _raii_joiner = ::thread::Joiner::new(joiner);
 
         assert!(nw_event_sender.send(NetworkEvent::Connected(TOKEN)).is_ok());
         assert!(ui_event_sender.send(UiEvent::CreateDirectory(DIR_NAME.to_string())).is_ok());

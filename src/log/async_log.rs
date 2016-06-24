@@ -31,7 +31,7 @@ use std::net::{ToSocketAddrs, SocketAddr, TcpStream};
 
 use std::str::FromStr;
 use std::borrow::Borrow;
-use thread::RaiiThreadJoiner;
+use thread::Joiner;
 use log::web_socket::WebSocket;
 
 use regex::Regex;
@@ -308,7 +308,7 @@ enum AsyncEvent {
 pub struct AsyncAppender {
     pattern: PatternLayout,
     tx: Sender<AsyncEvent>,
-    _raii_joiner: RaiiThreadJoiner,
+    _raii_joiner: Joiner,
 }
 
 impl AsyncAppender {
@@ -341,7 +341,7 @@ impl AsyncAppender {
         AsyncAppender {
             pattern: pattern,
             tx: tx,
-            _raii_joiner: RaiiThreadJoiner::new(joiner),
+            _raii_joiner: Joiner::new(joiner),
         }
     }
 }
