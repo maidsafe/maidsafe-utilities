@@ -536,8 +536,7 @@ mod test {
 
                 while read_buf.len() - search_frm_index >= MSG_TERMINATOR.len() {
                     if read_buf[search_frm_index..].starts_with(&MSG_TERMINATOR) {
-                        log_msgs.push(unwrap!(
-                                str::from_utf8(&read_buf[..search_frm_index]))
+                        log_msgs.push(unwrap!(str::from_utf8(&read_buf[..search_frm_index]))
                             .to_owned());
                         read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
                         search_frm_index = 0;
