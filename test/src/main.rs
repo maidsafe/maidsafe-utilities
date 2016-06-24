@@ -25,7 +25,7 @@ use std::time::Duration;
 use maidsafe_utilities::log as safe_log;
 
 fn main() {
-    unwrap_result!(safe_log::init(false));
+    unwrap!(safe_log::init(false));
 
     trace!("This is a log message.");
     debug!("This is a log message.");

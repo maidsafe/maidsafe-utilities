@@ -47,9 +47,10 @@
 //! #[macro_use]
 //! extern crate log;
 //! #[macro_use]
+//! extern crate unwrap;
 //! extern crate maidsafe_utilities;
 //! use std::thread;
-//! use maidsafe_utilities::thread::RaiiThreadJoiner;
+//! use maidsafe_utilities::thread::Joiner;
 //!
 //! mod my_mod {
 //!     pub fn show_warning() {
@@ -58,15 +59,15 @@
 //! }
 //!
 //! fn main() {
-//!     unwrap_result!(maidsafe_utilities::log::init(true));
+//!     unwrap!(maidsafe_utilities::log::init(true));
 //!
 //!     my_mod::show_warning();
 //!
 //!     let unnamed = thread::spawn(move || info!("Message in unnamed thread"));
 //!     let _ = unnamed.join();
 //!
-//!     let _named = RaiiThreadJoiner::new(thread!("Worker",
-//!                                                move || error!("Message in named thread")));
+//!     let _named = maidsafe_utilities::thread::named("Worker",
+//!                                      move || error!("Message in named thread"));
 //!
 //!     // WARN 16:10:44.989712300 <main> [example::my_mod main.rs:10] A warning
 //!     // INFO 16:10:44.990716600 <unnamed> [example main.rs:19] Message in unnamed thread
@@ -115,7 +116,7 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
-        let mut config_path = unwrap_result!(env::current_exe());
+        let mut config_path = unwrap!(env::current_exe());
         config_path.set_file_name(CONFIG_FILE);
 
         result = if config_path.is_file() {
@@ -364,7 +365,7 @@ fn make_pattern(show_thread_name: bool) -> PatternLayout {
         "%l %d{%H:%M:%S.%f} [%M #FS#%f#FE#:%L] %m"
     };
 
-    unwrap_result!(PatternLayout::new(pattern))
+    unwrap!(PatternLayout::new(pattern))
 }
 
 #[derive(Debug)]
@@ -445,7 +446,7 @@ mod test {
     use ws;
     use ws::{Message, Handler};
     use logger::LogLevelFilter;
-    use thread::RaiiThreadJoiner;
+    use thread::Joiner;
 
     #[test]
     fn test_parse_loggers() {
@@ -512,12 +513,12 @@ mod test {
         let (tx, rx) = mpsc::channel();
 
         // Start Log Message Server
-        let _raii_joiner = RaiiThreadJoiner::new(thread!("LogMessageServer", move || {
+        let _raii_joiner = Joiner::new(thread!("LogMessageServer", move || {
             use std::io::Read;
 
-            let listener = unwrap_result!(TcpListener::bind("127.0.0.1:55555"));
-            unwrap_result!(tx.send(()));
-            let (mut stream, _) = unwrap_result!(listener.accept());
+            let listener = unwrap!(TcpListener::bind("127.0.0.1:55555"));
+            unwrap!(tx.send(()));
+            let (mut stream, _) = unwrap!(listener.accept());
 
             let mut log_msgs = Vec::with_capacity(MSG_COUNT);
 
@@ -526,7 +527,7 @@ mod test {
             let mut search_frm_index = 0;
 
             while log_msgs.len() < MSG_COUNT {
-                let bytes_rxd = unwrap_result!(stream.read(&mut scratch_buf));
+                let bytes_rxd = unwrap!(stream.read(&mut scratch_buf));
                 if bytes_rxd == 0 {
                     unreachable!("Should not have encountered shutdown yet");
                 }
@@ -535,7 +536,7 @@ mod test {
 
                 while read_buf.len() - search_frm_index >= MSG_TERMINATOR.len() {
                     if read_buf[search_frm_index..].starts_with(&MSG_TERMINATOR) {
-                        log_msgs.push(unwrap_result!(
+                        log_msgs.push(unwrap!(
                                 str::from_utf8(&read_buf[..search_frm_index]))
                             .to_owned());
                         read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
@@ -552,9 +553,9 @@ mod test {
             }
         }));
 
-        unwrap_result!(rx.recv());
+        unwrap!(rx.recv());
 
-        unwrap_result!(init_to_server("127.0.0.1:55555", true, false));
+        unwrap!(init_to_server("127.0.0.1:55555", true, false));
 
         info!("This message should not be found by default log level");
         warn!("This is message 0");
@@ -589,18 +590,18 @@ mod test {
 
             impl Handler for Server {
                 fn on_message(&mut self, msg: Message) -> ws::Result<()> {
-                    let text = unwrap_result!(msg.as_text());
+                    let text = unwrap!(msg.as_text());
                     assert!(text.contains(&format!("This is message {}", self.count)[..]));
                     self.count += 1;
                     if self.count == MSG_COUNT {
-                        unwrap_result!(self.tx.send(()));
+                        unwrap!(self.tx.send(()));
                     }
 
                     Ok(())
                 }
             }
 
-            unwrap_result!(ws::listen("127.0.0.1:44444", |_| {
+            unwrap!(ws::listen("127.0.0.1:44444", |_| {
                 Server {
                     tx: tx.clone(),
                     count: 0,
@@ -611,7 +612,7 @@ mod test {
         // Allow sometime for server to start listening
         thread::sleep(Duration::from_millis(100));
 
-        unwrap_result!(init_to_web_socket("ws://127.0.0.1:44444", false, false));
+        unwrap!(init_to_web_socket("ws://127.0.0.1:44444", false, false));
 
         info!("This message should not be found by default log level");
         warn!("This is message 0");
@@ -626,6 +627,6 @@ mod test {
         debug!("This message should not be found by default log level");
         error!("This is message 2");
 
-        unwrap_result!(rx.recv());
+        unwrap!(rx.recv());
     }
 }

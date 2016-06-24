@@ -89,7 +89,7 @@ pub enum EventSenderError<Category, EventSubset> {
 ///                                                   EventCategory::Network,
 ///                                                   category_tx);
 ///
-///     let joiner = thread!("EventListenerThread", move || {
+///     let _joiner = maidsafe_utilities::thread::named("EventListenerThread", move || {
 ///         for it in category_rx.iter() {
 ///             match it {
 ///                 EventCategory::Network => {
@@ -111,8 +111,6 @@ pub enum EventSenderError<Category, EventSubset> {
 ///             }
 ///         }
 ///     });
-///
-///     let _raii_joiner = maidsafe_utilities::thread::RaiiThreadJoiner::new(joiner);
 ///
 ///     assert!(nw_event_sender.send(NetworkEvent::Connected).is_ok());
 ///     assert!(ui_event_sender.send(UiEvent::CreateDirectory).is_ok());
@@ -220,7 +218,7 @@ mod test {
         let nw_event_sender =
             NetworkEventSender::new(network_event_tx, EventCategory::Network, category_tx);
 
-        let joiner = thread!("EventListenerThread", move || {
+        let _joiner = ::thread::named("EventListenerThread", move || {
             for it in category_rx.iter() {
                 match it {
                     EventCategory::Network => {
@@ -244,8 +242,6 @@ mod test {
             }
         });
 
-        let _raii_joiner = ::thread::RaiiThreadJoiner::new(joiner);
-
         assert!(nw_event_sender.send(NetworkEvent::Connected(TOKEN)).is_ok());
         assert!(ui_event_sender.send(UiEvent::CreateDirectory(DIR_NAME.to_string())).is_ok());
         assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
@@ -256,7 +252,7 @@ mod test {
         assert!(nw_event_sender.send(NetworkEvent::Disconnected).is_err());
 
         let result = ui_event_sender.send(UiEvent::CreateDirectory(DIR_NAME.to_owned())).err();
-        if let EventSenderError::EventSubset(send_err) = unwrap_option!(result, "") {
+        if let EventSenderError::EventSubset(send_err) = unwrap!(result) {
             if let UiEvent::CreateDirectory(dir_name) = send_err.0 {
                 assert_eq!(dir_name, DIR_NAME)
             } else {

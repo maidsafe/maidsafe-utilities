@@ -24,11 +24,11 @@ use std::io::{Error, ErrorKind, Result};
 use ws;
 use ws::{CloseCode, Handshake, Handler, Message};
 
-use thread::RaiiThreadJoiner;
+use thread::Joiner;
 
 pub struct WebSocket {
     ws_tx: ws::Sender,
-    _raii_joiner: RaiiThreadJoiner,
+    _raii_joiner: Joiner,
 }
 
 impl WebSocket {
@@ -61,7 +61,7 @@ impl WebSocket {
             match ws::connect(url, |ws_tx| {
                 Client {
                     ws_tx: ws_tx,
-                    tx: unwrap_option!(tx_opt.take(), "Logic Error! Report as bug."),
+                    tx: unwrap!(tx_opt.take(), "Logic Error! Report as bug."),
                 }
             }) {
                 Ok(()) => (),
@@ -75,7 +75,7 @@ impl WebSocket {
             Ok(Ok(ws_tx)) => {
                 Ok(WebSocket {
                     ws_tx: ws_tx,
-                    _raii_joiner: RaiiThreadJoiner::new(joiner),
+                    _raii_joiner: Joiner::new(joiner),
                 })
             }
             Ok(Err(e)) => Err(e),

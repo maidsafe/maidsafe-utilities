@@ -31,7 +31,7 @@ use std::net::{ToSocketAddrs, SocketAddr, TcpStream};
 
 use std::str::FromStr;
 use std::borrow::Borrow;
-use thread::RaiiThreadJoiner;
+use thread::Joiner;
 use log::web_socket::WebSocket;
 
 use regex::Regex;
@@ -282,7 +282,7 @@ pub fn make_json_pattern(unique_id: u64) -> PatternLayout {
                            \"module\":\"%M\",\"file\":\"%f\",\"line\":\"%L\",\"msg\":\"%m\"}}",
                           unique_id);
 
-    unwrap_result!(PatternLayout::new(&pattern))
+    unwrap!(PatternLayout::new(&pattern))
 }
 
 #[derive(Debug)]
@@ -308,7 +308,7 @@ enum AsyncEvent {
 pub struct AsyncAppender {
     pattern: PatternLayout,
     tx: Sender<AsyncEvent>,
-    _raii_joiner: RaiiThreadJoiner,
+    _raii_joiner: Joiner,
 }
 
 impl AsyncAppender {
@@ -316,7 +316,7 @@ impl AsyncAppender {
         let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
         let joiner = thread!("AsyncLog", move || {
-            let re = unwrap_result!(Regex::new(r"#FS#?.*[/\\#]([^#]+)#FE#"));
+            let re = unwrap!(Regex::new(r"#FS#?.*[/\\#]([^#]+)#FE#"));
 
             for event in rx.iter() {
                 match event {
@@ -341,7 +341,7 @@ impl AsyncAppender {
         AsyncAppender {
             pattern: pattern,
             tx: tx,
-            _raii_joiner: RaiiThreadJoiner::new(joiner),
+            _raii_joiner: Joiner::new(joiner),
         }
     }
 }
