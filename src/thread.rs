@@ -35,15 +35,15 @@ impl Joiner {
 
     /// Releases the `Joiner` by detaching the thread.
     pub fn detach(mut self) {
-        let _ = unwrap!(self.joiner.take(),
-                        "Programming error: please report this as a bug.");
+        let _ = unwrap_option!(self.joiner.take(),
+                               "Programming error: please report this as a bug.");
     }
 }
 
 impl Drop for Joiner {
     fn drop(&mut self) {
         if let Some(joiner) = self.joiner.take() {
-            unwrap!(joiner.join());
+            unwrap_result!(joiner.join());
         }
     }
 }
@@ -73,7 +73,7 @@ impl Drop for Joiner {
 #[macro_export]
 macro_rules! thread {
     ($thread_name:expr, $entry_point:expr) => {
-        unwrap!(::std::thread::Builder::new().name($thread_name.to_owned())
+        unwrap_result!(::std::thread::Builder::new().name($thread_name.to_owned())
                                              .spawn($entry_point))
     }
 }
@@ -98,8 +98,9 @@ pub fn named<S, F>(thread_name: S, func: F) -> Joiner
           F: FnOnce() + Send + 'static
 {
     let thread_name: String = thread_name.into();
-    let join_handle_res = std::thread::Builder::new().name(thread_name)
-                                               .spawn(func);
+    let join_handle_res = std::thread::Builder::new()
+        .name(thread_name)
+        .spawn(func);
     Joiner::new(unwrap!(join_handle_res))
 }
 
@@ -119,8 +120,9 @@ mod test {
             let time_before = Instant::now();
             {
                 named("JoinerTestDaemon", move || {
-                    thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
-                }).detach();
+                        thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
+                    })
+                    .detach();
             }
             let diff = time_before.elapsed();
 

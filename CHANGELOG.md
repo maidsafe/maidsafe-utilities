@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.8.0]
+- Revert use of `unwrap!` inside `thread!`.
+
 ## [0.7.1]
 - Replaced `thread!` macro with `named()` function.
 - Renamed `RaiiThreadJoiner` to `Joiner`.

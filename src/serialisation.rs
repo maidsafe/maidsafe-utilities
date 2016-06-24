@@ -117,8 +117,7 @@ mod test {
         let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
 
         let serialised_data = unwrap!(serialise(&original_data));
-        let deserialised_data: (Vec<u8>, Vec<i64>, String) =
-            unwrap!(deserialise(&serialised_data));
+        let deserialised_data: (Vec<u8>, Vec<i64>, String) = unwrap!(deserialise(&serialised_data));
         assert_eq!(original_data, deserialised_data);
     }
 
@@ -186,11 +185,10 @@ mod test {
 
         // Try to deserialise data above default limit with size limit specified
         let deserialised_data_0: Vec<u64> = unwrap!(deserialise_with_limit(&serialised_data,
-                                                                        SizeLimit::Infinite));
+                                                                           SizeLimit::Infinite));
         assert_eq!(original_data, deserialised_data_0);
         let deserialised_data_1: Vec<u64> =
-            unwrap!(deserialise_from_with_limit(&mut Cursor::new(buffer),
-                                                SizeLimit::Infinite));
+            unwrap!(deserialise_from_with_limit(&mut Cursor::new(buffer), SizeLimit::Infinite));
         assert_eq!(original_data, deserialised_data_1);
     }
 }
