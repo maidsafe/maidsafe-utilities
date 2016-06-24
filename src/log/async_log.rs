@@ -282,7 +282,7 @@ pub fn make_json_pattern(unique_id: u64) -> PatternLayout {
                            \"module\":\"%M\",\"file\":\"%f\",\"line\":\"%L\",\"msg\":\"%m\"}}",
                           unique_id);
 
-    unwrap_result!(PatternLayout::new(&pattern))
+    unwrap!(PatternLayout::new(&pattern))
 }
 
 #[derive(Debug)]
@@ -316,7 +316,7 @@ impl AsyncAppender {
         let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
         let joiner = thread!("AsyncLog", move || {
-            let re = unwrap_result!(Regex::new(r"#FS#?.*[/\\#]([^#]+)#FE#"));
+            let re = unwrap!(Regex::new(r"#FS#?.*[/\\#]([^#]+)#FE#"));
 
             for event in rx.iter() {
                 match event {

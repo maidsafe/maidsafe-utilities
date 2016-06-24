@@ -116,9 +116,9 @@ mod test {
     fn serialise_deserialise() {
         let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
 
-        let serialised_data = unwrap_result!(serialise(&original_data));
+        let serialised_data = unwrap!(serialise(&original_data));
         let deserialised_data: (Vec<u8>, Vec<i64>, String) =
-            unwrap_result!(deserialise(&serialised_data));
+            unwrap!(deserialise(&serialised_data));
         assert_eq!(original_data, deserialised_data);
     }
 
@@ -126,11 +126,11 @@ mod test {
     fn serialise_into_deserialise_from() {
         let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
         let mut serialised_data = vec![];
-        unwrap_result!(serialise_into(&original_data, &mut serialised_data));
+        unwrap!(serialise_into(&original_data, &mut serialised_data));
 
         let mut serialised = Cursor::new(serialised_data);
         let deserialised_data: (Vec<u8>, Vec<i64>, String) =
-            unwrap_result!(deserialise_from(&mut serialised));
+            unwrap!(deserialise_from(&mut serialised));
         assert_eq!(original_data, deserialised_data);
     }
 
@@ -142,14 +142,14 @@ mod test {
         };
         // Test with data which is at limit
         let mut original_data = (1u64..(upper_limit / 8)).collect::<Vec<_>>();
-        let mut serialised_data = unwrap_result!(serialise(&original_data));
-        let mut deserialised_data: Vec<u64> = unwrap_result!(deserialise(&serialised_data));
+        let mut serialised_data = unwrap!(serialise(&original_data));
+        let mut deserialised_data: Vec<u64> = unwrap!(deserialise(&serialised_data));
         assert!(original_data == deserialised_data);
 
         serialised_data.clear();
-        unwrap_result!(serialise_into(&original_data, &mut serialised_data));
+        unwrap!(serialise_into(&original_data, &mut serialised_data));
         let mut serialised = Cursor::new(serialised_data);
-        deserialised_data = unwrap_result!(deserialise_from(&mut serialised));
+        deserialised_data = unwrap!(deserialise_from(&mut serialised));
         assert_eq!(original_data, deserialised_data);
 
         // Try to serialise data above limit
@@ -165,7 +165,7 @@ mod test {
         }
 
         // Try to deserialise data above limit
-        let excessive = unwrap_result!(encode(&original_data, SizeLimit::Infinite));
+        let excessive = unwrap!(encode(&original_data, SizeLimit::Infinite));
         if let Err(SerialisationError::Deserialise(DecodingError::SizeLimit)) =
                deserialise::<Vec<u64>>(&excessive) {} else {
             panic!("Expected size limit error.");
@@ -177,20 +177,20 @@ mod test {
         }
 
         // Try to serialise data above default limit with size limit specified
-        serialised_data = unwrap_result!(serialise_with_limit(&original_data, SizeLimit::Infinite));
+        serialised_data = unwrap!(serialise_with_limit(&original_data, SizeLimit::Infinite));
 
         buffer = Vec::with_capacity(serialised_data.len());
-        unwrap_result!(serialise_into_with_limit(&original_data, &mut buffer, SizeLimit::Infinite));
+        unwrap!(serialise_into_with_limit(&original_data, &mut buffer, SizeLimit::Infinite));
 
         assert_eq!(serialised_data, buffer);
 
         // Try to deserialise data above default limit with size limit specified
-        let deserialised_data_0: Vec<u64> = unwrap_result!(deserialise_with_limit(&serialised_data,
+        let deserialised_data_0: Vec<u64> = unwrap!(deserialise_with_limit(&serialised_data,
                                                                         SizeLimit::Infinite));
         assert_eq!(original_data, deserialised_data_0);
         let deserialised_data_1: Vec<u64> =
-            unwrap_result!(deserialise_from_with_limit(&mut Cursor::new(buffer),
-                                                       SizeLimit::Infinite));
+            unwrap!(deserialise_from_with_limit(&mut Cursor::new(buffer),
+                                                SizeLimit::Infinite));
         assert_eq!(original_data, deserialised_data_1);
     }
 }

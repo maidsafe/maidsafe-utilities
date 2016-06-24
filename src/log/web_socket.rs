@@ -61,7 +61,7 @@ impl WebSocket {
             match ws::connect(url, |ws_tx| {
                 Client {
                     ws_tx: ws_tx,
-                    tx: unwrap_option!(tx_opt.take(), "Logic Error! Report as bug."),
+                    tx: unwrap!(tx_opt.take(), "Logic Error! Report as bug."),
                 }
             }) {
                 Ok(()) => (),
