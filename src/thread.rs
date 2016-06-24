@@ -73,24 +73,24 @@ macro_rules! thread {
 /// #Examples
 ///
 /// ```
-/// let _ = maidsafe_utilities::thread::spawn("DaemonThread", move || {
+/// let _ = maidsafe_utilities::thread::named("DaemonThread", move || {
 ///     std::thread::sleep(std::time::Duration::from_millis(10));
 /// });
 ///
 /// let sleep_duration_ms = 500;
 /// let _raii_joiner = maidsafe_utilities::thread
-///                                      ::RaiiThreadJoiner::new(maidsafe_utilities::thread::spawn("ManagedThread", move || {
+///                                      ::RaiiThreadJoiner::new(maidsafe_utilities::thread::named("ManagedThread", move || {
 ///     std::thread::sleep(std::time::Duration::from_millis(sleep_duration_ms));
 /// }));
 /// ```
-pub fn spawn<S, F>(thread_name: S, func: F) -> JoinHandle<()>
+pub fn named<S, F>(thread_name: S, func: F) -> JoinHandle<()>
     where S: Into<String>,
           F: FnOnce() + Send + 'static
 {
     let thread_name: String = thread_name.into();
-    let t = std::thread::Builder::new().name(thread_name)
-                                       .spawn(func);
-    unwrap_result!(t)
+    let join_handle_res = std::thread::Builder::new().name(thread_name)
+                                               .spawn(func);
+    unwrap_result!(join_handle_res)
 }
 
 #[cfg(test)]
