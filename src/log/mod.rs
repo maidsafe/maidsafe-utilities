@@ -87,23 +87,23 @@ pub use self::async_log::MSG_TERMINATOR;
 mod async_log;
 mod web_socket;
 
-use log4rs;
-use log4rs::config::{Appender, Config, Logger, Root};
-use log4rs::pattern::PatternLayout;
-use log4rs::toml::Creator;
-use rand;
-
 use std::borrow::Borrow;
 use std::env;
 use std::fmt::{self, Display, Formatter};
-use std::path::Path;
 use std::net::ToSocketAddrs;
+use std::path::Path;
 use std::sync::{Once, ONCE_INIT};
+
+use log4rs;
+use log4rs::config::{Appender, Config, Logger, Root};
+use log4rs::file::Deserializers;
+use log4rs::encode::pattern::PatternEncoder;
+use logger::LogLevelFilter;
+use rand;
 
 use self::async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
                       AsyncFileAppenderCreator, AsyncServerAppender, AsyncServerAppenderCreator,
                       AsyncWebSockAppender, AsyncWebSockAppenderCreator};
-use logger::LogLevelFilter;
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
 static CONFIG_FILE: &'static str = "log.toml";
@@ -120,28 +120,31 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
         config_path.set_file_name(CONFIG_FILE);
 
         result = if config_path.is_file() {
-            let mut creator = Creator::default();
-            creator.add_appender("async_console", Box::new(AsyncConsoleAppenderCreator));
-            creator.add_appender("async_file", Box::new(AsyncFileAppenderCreator));
-            creator.add_appender("async_server", Box::new(AsyncServerAppenderCreator));
-            creator.add_appender("async_web_socket", Box::new(AsyncWebSockAppenderCreator));
+            let mut deserializers = Deserializers::default();
+            deserializers.insert(From::from("async_console"),
+                                 Box::new(AsyncConsoleAppenderCreator));
+            deserializers.insert(From::from("async_file"), Box::new(AsyncFileAppenderCreator));
+            deserializers.insert(From::from("async_server"),
+                                 Box::new(AsyncServerAppenderCreator));
+            deserializers.insert(From::from("async_web_socket"),
+                                 Box::new(AsyncWebSockAppenderCreator));
 
-            log4rs::init_file(config_path, creator).map_err(|e| format!("{}", e))
+            log4rs::init_file(config_path, deserializers).map_err(|e| format!("{}", e))
         } else {
             let console_appender = AsyncConsoleAppender::builder()
-                .pattern(make_pattern(show_thread_name))
+                .encoder(Box::new(make_pattern(show_thread_name)))
                 .build();
-            let console_appender =
-                Appender::builder("async_console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder()
+                .build("async_console".to_owned(), Box::new(console_appender));
 
-            let (default_level, loggers) = parse_loggers_from_env()
-                .expect("failed to parse RUST_LOG env variable");
+            let (default_level, loggers) = unwrap!(parse_loggers_from_env(),
+                                                   "failed to parse RUST_LOG env variable");
 
-            let root = Root::builder(default_level).appender("async_console".to_owned()).build();
-            let config = match Config::builder(root)
+            let root = Root::builder().appender("async_console".to_owned()).build(default_level);
+            let config = match Config::builder()
                 .appender(console_appender)
                 .loggers(loggers)
-                .build()
+                .build(root)
                 .map_err(|e| format!("{}", e)) {
                 Ok(config) => config,
                 Err(e) => {
@@ -150,7 +153,7 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
                 }
             };
 
-            log4rs::init_config(config).map_err(|e| format!("{}", e))
+            log4rs::init_config(config).map_err(|e| format!("{}", e)).map(|_| ())
         };
     });
 
@@ -175,18 +178,18 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
             }
         };
 
-        let mut root = Root::builder(default_level).appender("file".to_owned());
+        let mut root = Root::builder().appender("file".to_owned());
 
         if log_to_console {
             root = root.appender("console".to_owned());
         }
 
-        let root = root.build();
+        let root = root.build(default_level);
 
-        let mut config = Config::builder(root).loggers(loggers);
+        let mut config = Config::builder().loggers(loggers);
 
         let file_appender = AsyncFileAppender::builder(file_path)
-            .pattern(make_pattern(show_thread_name))
+            .encoder(Box::new(make_pattern(show_thread_name)))
             .append(false)
             .build();
         let file_appender = match file_appender {
@@ -196,28 +199,28 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
                 return;
             }
         };
-        let file_appender = Appender::builder("file".to_owned(), Box::new(file_appender)).build();
+        let file_appender = Appender::builder().build("file".to_owned(), Box::new(file_appender));
 
         config = config.appender(file_appender);
 
         if log_to_console {
             let console_appender = AsyncConsoleAppender::builder()
-                .pattern(make_pattern(show_thread_name))
+                .encoder(Box::new(make_pattern(show_thread_name)))
                 .build();
-            let console_appender =
-                Appender::builder("console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder()
+                .build("console".to_owned(), Box::new(console_appender));
 
             config = config.appender(console_appender);
         }
 
-        let config = match config.build().map_err(|e| format!("{}", e)) {
+        let config = match config.build(root).map_err(|e| format!("{}", e)) {
             Ok(config) => config,
             Err(e) => {
                 result = Err(e);
                 return;
             }
         };
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
+        result = log4rs::init_config(config).map_err(|e| format!("{}", e)).map(|_| ())
     });
 
     result
@@ -242,18 +245,18 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
             }
         };
 
-        let mut root = Root::builder(default_level).appender("server".to_owned());
+        let mut root = Root::builder().appender("server".to_owned());
 
         if log_to_console {
             root = root.appender("console".to_owned());
         }
 
-        let root = root.build();
+        let root = root.build(default_level);
 
-        let mut config = Config::builder(root).loggers(loggers);
+        let mut config = Config::builder().loggers(loggers);
 
         let server_appender = match AsyncServerAppender::builder(server_addr)
-            .pattern(make_pattern(show_thread_name))
+            .encoder(Box::new(make_pattern(show_thread_name)))
             .build()
             .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
@@ -262,29 +265,31 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
                 return;
             }
         };
-        let server_appender = Appender::builder("server".to_owned(), Box::new(server_appender))
-            .build();
+
+        let server_appender = Appender::builder()
+            .build("server".to_owned(), Box::new(server_appender));
 
         config = config.appender(server_appender);
 
         if log_to_console {
             let console_appender = AsyncConsoleAppender::builder()
-                .pattern(make_pattern(show_thread_name))
+                .encoder(Box::new(make_pattern(show_thread_name)))
                 .build();
-            let console_appender =
-                Appender::builder("console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder()
+                .build("console".to_owned(), Box::new(console_appender));
 
             config = config.appender(console_appender);
         }
 
-        let config = match config.build().map_err(|e| format!("{}", e)) {
+        let config = match config.build(root).map_err(|e| format!("{}", e)) {
             Ok(config) => config,
             Err(e) => {
                 result = Err(e);
                 return;
             }
         };
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
+
+        result = log4rs::init_config(config).map_err(|e| format!("{}", e)).map(|_| ())
     });
 
     result
@@ -310,18 +315,18 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
             }
         };
 
-        let mut root = Root::builder(default_level).appender("server".to_owned());
+        let mut root = Root::builder().appender("server".to_owned());
 
         if log_to_console {
             root = root.appender("console".to_owned());
         }
 
-        let root = root.build();
+        let root = root.build(default_level);
 
-        let mut config = Config::builder(root).loggers(loggers);
+        let mut config = Config::builder().loggers(loggers);
 
         let server_appender = match AsyncWebSockAppender::builder(server_url)
-            .pattern(async_log::make_json_pattern(rand::random()))
+            .encoder(Box::new(async_log::make_json_pattern(rand::random())))
             .build()
             .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
@@ -330,42 +335,42 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
                 return;
             }
         };
-        let server_appender = Appender::builder("server".to_owned(), Box::new(server_appender))
-            .build();
+        let server_appender = Appender::builder()
+            .build("server".to_owned(), Box::new(server_appender));
 
         config = config.appender(server_appender);
 
         if log_to_console {
             let console_appender = AsyncConsoleAppender::builder()
-                .pattern(make_pattern(show_thread_name_in_console))
+                .encoder(Box::new(make_pattern(show_thread_name_in_console)))
                 .build();
-            let console_appender =
-                Appender::builder("console".to_owned(), Box::new(console_appender)).build();
+            let console_appender = Appender::builder()
+                .build("console".to_owned(), Box::new(console_appender));
 
             config = config.appender(console_appender);
         }
 
-        let config = match config.build().map_err(|e| format!("{}", e)) {
+        let config = match config.build(root).map_err(|e| format!("{}", e)) {
             Ok(config) => config,
             Err(e) => {
                 result = Err(e);
                 return;
             }
         };
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e))
+        result = log4rs::init_config(config).map_err(|e| format!("{}", e)).map(|_| ());
     });
 
     result
 }
 
-fn make_pattern(show_thread_name: bool) -> PatternLayout {
+fn make_pattern(show_thread_name: bool) -> PatternEncoder {
     let pattern = if show_thread_name {
-        "%l %d{%H:%M:%S.%f} %T [%M #FS#%f#FE#:%L] %m"
+        "{l} {d(%H:%M:%S.%f)} {T} [{M} #FS#{f}#FE#:{L}] {m}"
     } else {
-        "%l %d{%H:%M:%S.%f} [%M #FS#%f#FE#:%L] %m"
+        "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}"
     };
 
-    unwrap!(PatternLayout::new(pattern))
+    PatternEncoder::new(pattern)
 }
 
 #[derive(Debug)]
@@ -408,9 +413,9 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
             (Some(module_name), Some(level)) => {
                 let level_filter = try!(level.parse());
                 while let Some(module) = grouped_modules.pop_front() {
-                    loggers.push(Logger::builder(module, level_filter).build());
+                    loggers.push(Logger::builder().build(module, level_filter));
                 }
-                loggers.push(Logger::builder(module_name.to_owned(), level_filter).build());
+                loggers.push(Logger::builder().build(module_name.to_owned(), level_filter));
             }
             (Some(module), None) => {
                 if let Ok(level_filter) = module.parse::<LogLevelFilter>() {
@@ -424,7 +429,7 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
     }
 
     while let Some(module) = grouped_modules.pop_front() {
-        loggers.push(Logger::builder(module, default_level).build());
+        loggers.push(Logger::builder().build(module, default_level));
     }
 
 
@@ -436,17 +441,15 @@ mod test {
     use super::*;
     use super::parse_loggers;
 
-    use std::str;
-    use std::thread;
-    use std::sync::mpsc;
-    use std::time::Duration;
     use std::net::TcpListener;
-    use std::sync::mpsc::Sender;
+    use std::str;
+    use std::sync::mpsc::{self, Sender};
+    use std::thread;
+    use std::time::Duration;
 
+    use logger::LogLevelFilter;
     use ws;
     use ws::{Message, Handler};
-    use logger::LogLevelFilter;
-    use thread::Joiner;
 
     #[test]
     fn test_parse_loggers() {
@@ -513,7 +516,7 @@ mod test {
         let (tx, rx) = mpsc::channel();
 
         // Start Log Message Server
-        let _raii_joiner = Joiner::new(thread!("LogMessageServer", move || {
+        let _raii_joiner = ::thread::named("LogMessageServer", move || {
             use std::io::Read;
 
             let listener = unwrap!(TcpListener::bind("127.0.0.1:55555"));
@@ -550,13 +553,14 @@ mod test {
                 assert!(it.1.contains(&format!("This is message {}", it.0)[..]));
                 assert!(!it.1.contains("#"));
             }
-        }));
+        });
 
         unwrap!(rx.recv());
 
         unwrap!(init_to_server("127.0.0.1:55555", true, false));
 
         info!("This message should not be found by default log level");
+
         warn!("This is message 0");
         trace!("This message should not be found by default log level");
         warn!("This is message 1");
