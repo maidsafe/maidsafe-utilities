@@ -16,12 +16,23 @@
 // relating to use of the SAFE Network Software.
 
 use std;
+use std::fmt;
 use std::thread::JoinHandle;
 
 /// A RAII style thread joiner. The destruction of an instance of this type will block until
 /// the thread it is managing has joined.
 pub struct Joiner {
     joiner: Option<JoinHandle<()>>,
+}
+
+impl fmt::Debug for Joiner {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.joiner.is_some() {
+            write!(f, "Joiner {{ joiner: Some(...) }}")
+        } else {
+            write!(f, "Joiner {{ joiner: None }}")
+        }
+    }
 }
 
 /// Deprecated name for `Joiner`
