@@ -17,26 +17,31 @@
 
 // TODO: consider contributing this code to the log4rs crate.
 
-use log4rs::Append;
-use log4rs::pattern::PatternLayout;
-use log4rs::toml::CreateAppender;
+use log4rs::append::Append;
+use log4rs::encode::Encode;
+use log4rs::encode::pattern::PatternEncoder;
+use log4rs::encode::writer::SimpleWriter;
+use log4rs::file::{Deserialize, Deserializers};
 use logger::LogRecord;
+
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::fs::{File, OpenOptions};
 use std::io::{self, Stdout, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::sync::mpsc::{self, Sender};
 use std::net::{ToSocketAddrs, SocketAddr, TcpStream};
 
 use std::str::FromStr;
 use std::borrow::Borrow;
+
+use serde_value::Value;
 use thread::Joiner;
 use log::web_socket::WebSocket;
 
 use regex::Regex;
-
-use toml::{Table, Value};
 
 /// Message terminator for streaming to Log Servers. Servers must look out for this sequence which
 /// demarcates the end of a particular log message.
@@ -46,21 +51,21 @@ pub struct AsyncConsoleAppender;
 
 impl AsyncConsoleAppender {
     pub fn builder() -> AsyncConsoleAppenderBuilder {
-        AsyncConsoleAppenderBuilder { pattern: PatternLayout::default() }
+        AsyncConsoleAppenderBuilder { encoder: Box::new(PatternEncoder::default()) }
     }
 }
 
 pub struct AsyncConsoleAppenderBuilder {
-    pattern: PatternLayout,
+    encoder: Box<Encode>,
 }
 
 impl AsyncConsoleAppenderBuilder {
-    pub fn pattern(self, pattern: PatternLayout) -> Self {
-        AsyncConsoleAppenderBuilder { pattern: pattern }
+    pub fn encoder(self, encoder: Box<Encode>) -> Self {
+        AsyncConsoleAppenderBuilder { encoder: encoder }
     }
 
     pub fn build(self) -> AsyncAppender {
-        AsyncAppender::new(io::stdout(), self.pattern)
+        AsyncAppender::new(io::stdout(), self.encoder)
     }
 }
 
@@ -70,7 +75,7 @@ impl AsyncFileAppender {
     pub fn builder<P: AsRef<Path>>(path: P) -> AsyncFileAppenderBuilder {
         AsyncFileAppenderBuilder {
             path: path.as_ref().to_path_buf(),
-            pattern: PatternLayout::default(),
+            encoder: Box::new(PatternEncoder::default()),
             append: true,
         }
     }
@@ -78,15 +83,15 @@ impl AsyncFileAppender {
 
 pub struct AsyncFileAppenderBuilder {
     path: PathBuf,
-    pattern: PatternLayout,
+    encoder: Box<Encode>,
     append: bool,
 }
 
 impl AsyncFileAppenderBuilder {
-    pub fn pattern(self, pattern: PatternLayout) -> Self {
+    pub fn encoder(self, encoder: Box<Encode>) -> Self {
         AsyncFileAppenderBuilder {
             path: self.path,
-            pattern: pattern,
+            encoder: encoder,
             append: self.append,
         }
     }
@@ -94,7 +99,7 @@ impl AsyncFileAppenderBuilder {
     pub fn append(self, append: bool) -> Self {
         AsyncFileAppenderBuilder {
             path: self.path,
-            pattern: self.pattern,
+            encoder: self.encoder,
             append: append,
         }
     }
@@ -106,7 +111,7 @@ impl AsyncFileAppenderBuilder {
             .create(true)
             .open(self.path));
 
-        Ok(AsyncAppender::new(file, self.pattern))
+        Ok(AsyncAppender::new(file, self.encoder))
     }
 }
 
@@ -116,7 +121,7 @@ impl AsyncServerAppender {
     pub fn builder<A: ToSocketAddrs>(server_addr: A) -> AsyncServerAppenderBuilder<A> {
         AsyncServerAppenderBuilder {
             addr: server_addr,
-            pattern: PatternLayout::default(),
+            encoder: Box::new(PatternEncoder::default()),
             no_delay: true,
         }
     }
@@ -124,15 +129,15 @@ impl AsyncServerAppender {
 
 pub struct AsyncServerAppenderBuilder<A> {
     addr: A,
-    pattern: PatternLayout,
+    encoder: Box<Encode>,
     no_delay: bool,
 }
 
 impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
-    pub fn pattern(self, pattern: PatternLayout) -> Self {
+    pub fn encoder(self, encoder: Box<Encode>) -> Self {
         AsyncServerAppenderBuilder {
             addr: self.addr,
-            pattern: pattern,
+            encoder: encoder,
             no_delay: self.no_delay,
         }
     }
@@ -140,7 +145,7 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
     pub fn no_delay(self, no_delay: bool) -> Self {
         AsyncServerAppenderBuilder {
             addr: self.addr,
-            pattern: self.pattern,
+            encoder: self.encoder,
             no_delay: no_delay,
         }
     }
@@ -148,7 +153,7 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
     pub fn build(self) -> io::Result<AsyncAppender> {
         let stream = try!(TcpStream::connect(self.addr));
         try!(stream.set_nodelay(self.no_delay));
-        Ok(AsyncAppender::new(stream, self.pattern))
+        Ok(AsyncAppender::new(stream, self.encoder))
     }
 }
 
@@ -158,58 +163,78 @@ impl AsyncWebSockAppender {
     pub fn builder<U: Borrow<str>>(server_url: U) -> AsyncWebSockAppenderBuilder<U> {
         AsyncWebSockAppenderBuilder {
             url: server_url,
-            pattern: PatternLayout::default(),
+            encoder: Box::new(PatternEncoder::default()),
         }
     }
 }
 
 pub struct AsyncWebSockAppenderBuilder<U> {
     url: U,
-    pattern: PatternLayout,
+    encoder: Box<Encode>,
 }
 
 impl<U: Borrow<str>> AsyncWebSockAppenderBuilder<U> {
-    pub fn pattern(self, pattern: PatternLayout) -> Self {
+    pub fn encoder(self, encoder: Box<Encode>) -> Self {
         AsyncWebSockAppenderBuilder {
             url: self.url,
-            pattern: pattern,
+            encoder: encoder,
         }
     }
 
     pub fn build(self) -> io::Result<AsyncAppender> {
         let ws = try!(WebSocket::new(self.url));
-        Ok(AsyncAppender::new(ws, self.pattern))
+        Ok(AsyncAppender::new(ws, self.encoder))
     }
 }
 
 pub struct AsyncConsoleAppenderCreator;
 
-impl CreateAppender for AsyncConsoleAppenderCreator {
-    fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
-        let pattern = try!(parse_pattern(&mut config, false));
-        Ok(Box::new(AsyncConsoleAppender::builder().pattern(pattern).build()))
+impl Deserialize for AsyncConsoleAppenderCreator {
+    type Trait = Append;
+
+    fn deserialize(&self,
+                   config: Value,
+                   _deserializers: &Deserializers)
+                   -> Result<Box<Append>, Box<Error>> {
+        let mut map = match config {
+            Value::Map(map) => map,
+            _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
+        };
+
+        let pattern = try!(parse_pattern(&mut map, false));
+        Ok(Box::new(AsyncConsoleAppender::builder().encoder(Box::new(pattern)).build()))
     }
 }
 
 pub struct AsyncFileAppenderCreator;
 
-impl CreateAppender for AsyncFileAppenderCreator {
-    fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
-        let path = match config.remove("path") {
+impl Deserialize for AsyncFileAppenderCreator {
+    type Trait = Append;
+
+    fn deserialize(&self,
+                   config: Value,
+                   _deserializers: &Deserializers)
+                   -> Result<Box<Append>, Box<Error>> {
+        let mut map = match config {
+            Value::Map(map) => map,
+            _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
+        };
+
+        let path = match map.remove(&Value::String("path".to_owned())) {
             Some(Value::String(path)) => path,
             Some(_) => return Err(Box::new(ConfigError("`path` must be a string".to_owned()))),
             None => return Err(Box::new(ConfigError("`path` is required".to_owned()))),
         };
 
-        let append = match config.remove("append") {
-            Some(Value::Boolean(append)) => append,
+        let append = match map.remove(&Value::String("append".to_owned())) {
+            Some(Value::Bool(append)) => append,
             Some(_) => return Err(Box::new(ConfigError("`append` must be a bool".to_owned()))),
             None => true,
         };
 
-        let pattern = try!(parse_pattern(&mut config, false));
+        let pattern = try!(parse_pattern(&mut map, false));
         let appender = try!(AsyncFileAppender::builder(path)
-            .pattern(pattern)
+            .encoder(Box::new(pattern))
             .append(append)
             .build());
 
@@ -219,24 +244,34 @@ impl CreateAppender for AsyncFileAppenderCreator {
 
 pub struct AsyncServerAppenderCreator;
 
-impl CreateAppender for AsyncServerAppenderCreator {
-    fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
-        let server_addr = match config.remove("server_addr") {
+impl Deserialize for AsyncServerAppenderCreator {
+    type Trait = Append;
+
+    fn deserialize(&self,
+                   config: Value,
+                   _deserializers: &Deserializers)
+                   -> Result<Box<Append>, Box<Error>> {
+        let mut map = match config {
+            Value::Map(map) => map,
+            _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
+        };
+
+        let server_addr = match map.remove(&Value::String("server_addr".to_owned())) {
             Some(Value::String(addr)) => try!(SocketAddr::from_str(&addr[..])),
             Some(_) => {
                 return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned())))
             }
             None => return Err(Box::new(ConfigError("`server_addr` is required".to_owned()))),
         };
-        let no_delay = match config.remove("no_delay") {
-            Some(Value::Boolean(no_delay)) => no_delay,
+        let no_delay = match map.remove(&Value::String("no_delay".to_owned())) {
+            Some(Value::Bool(no_delay)) => no_delay,
             Some(_) => return Err(Box::new(ConfigError("`no_delay` must be a boolean".to_owned()))),
             None => true,
         };
-        let pattern = try!(parse_pattern(&mut config, false));
+        let pattern = try!(parse_pattern(&mut map, false));
 
         Ok(Box::new(try!(AsyncServerAppender::builder(server_addr)
-            .pattern(pattern)
+            .encoder(Box::new(pattern))
             .no_delay(no_delay)
             .build())))
     }
@@ -244,45 +279,58 @@ impl CreateAppender for AsyncServerAppenderCreator {
 
 pub struct AsyncWebSockAppenderCreator;
 
-impl CreateAppender for AsyncWebSockAppenderCreator {
-    fn create_appender(&self, mut config: Table) -> Result<Box<Append>, Box<Error>> {
-        let server_url = match config.remove("server_url") {
+impl Deserialize for AsyncWebSockAppenderCreator {
+    type Trait = Append;
+
+    fn deserialize(&self,
+                   config: Value,
+                   _deserializers: &Deserializers)
+                   -> Result<Box<Append>, Box<Error>> {
+        let mut map = match config {
+            Value::Map(map) => map,
+            _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
+        };
+
+        let server_url = match map.remove(&Value::String("server_url".to_owned())) {
             Some(Value::String(url)) => url,
             Some(_) => {
                 return Err(Box::new(ConfigError("`server_url` must be a string".to_owned())))
             }
             None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
         };
-        let pattern = try!(parse_pattern(&mut config, true));
 
+        let pattern = try!(parse_pattern(&mut map, true));
         Ok(Box::new(try!(AsyncWebSockAppender::builder(server_url)
-            .pattern(pattern)
+            .encoder(Box::new(pattern))
             .build())))
     }
 }
 
-fn parse_pattern(config: &mut Table, is_websocket: bool) -> Result<PatternLayout, Box<Error>> {
+fn parse_pattern(map: &mut BTreeMap<Value, Value>,
+                 is_websocket: bool)
+                 -> Result<PatternEncoder, Box<Error>> {
     use rand;
 
-    match config.remove("pattern") {
-        Some(Value::String(pattern)) => Ok(try!(PatternLayout::new(&pattern))),
+    match map.remove(&Value::String("pattern".to_owned())) {
+        Some(Value::String(pattern)) => Ok(PatternEncoder::new(&pattern)),
         Some(_) => Err(Box::new(ConfigError("`pattern` must be a string".to_owned()))),
         None => {
             if is_websocket {
                 Ok(make_json_pattern(rand::random()))
             } else {
-                Ok(PatternLayout::default())
+                Ok(PatternEncoder::default())
             }
         }
     }
 }
 
-pub fn make_json_pattern(unique_id: u64) -> PatternLayout {
-    let pattern = format!("{{\"id\":\"{}\",\"level\":\"%l\",\"time\":\"%d\",\"thread\":\"%T\",\
-                           \"module\":\"%M\",\"file\":\"%f\",\"line\":\"%L\",\"msg\":\"%m\"}}",
+pub fn make_json_pattern(unique_id: u64) -> PatternEncoder {
+    let pattern = format!("{{{{\"id\":\"{}\",\"level\":\"{{l}}\",\"time\":\"{{d}}\",\"thread\":\
+                           \"{{T}}\",\"module\":\"{{M}}\",\"file\":\"{{f}}\",\"line\":\"{{L}}\",\
+                           \"msg\":\"{{m}}\"}}}}",
                           unique_id);
 
-    unwrap!(PatternLayout::new(&pattern))
+    PatternEncoder::new(&pattern)
 }
 
 #[derive(Debug)]
@@ -305,14 +353,15 @@ enum AsyncEvent {
     Terminate,
 }
 
+#[derive(Debug)]
 pub struct AsyncAppender {
-    pattern: PatternLayout,
-    tx: Sender<AsyncEvent>,
+    encoder: Box<Encode>,
+    tx: Mutex<Sender<AsyncEvent>>,
     _raii_joiner: Joiner,
 }
 
 impl AsyncAppender {
-    fn new<W: 'static + SyncWrite + Send>(mut writer: W, pattern: PatternLayout) -> Self {
+    fn new<W: 'static + SyncWrite + Send>(mut writer: W, encoder: Box<Encode>) -> Self {
         let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
         let joiner = thread!("AsyncLog", move || {
@@ -339,25 +388,25 @@ impl AsyncAppender {
         });
 
         AsyncAppender {
-            pattern: pattern,
-            tx: tx,
+            encoder: encoder,
+            tx: Mutex::new(tx),
             _raii_joiner: Joiner::new(joiner),
         }
     }
 }
 
 impl Append for AsyncAppender {
-    fn append(&mut self, record: &LogRecord) -> Result<(), Box<Error>> {
+    fn append(&self, record: &LogRecord) -> Result<(), Box<Error>> {
         let mut msg = Vec::new();
-        try!(self.pattern.append(&mut msg, record));
-        try!(self.tx.send(AsyncEvent::Log(msg)));
+        try!(self.encoder.encode(&mut SimpleWriter(&mut msg), record));
+        try!(unwrap!(self.tx.lock()).send(AsyncEvent::Log(msg)));
         Ok(())
     }
 }
 
 impl Drop for AsyncAppender {
     fn drop(&mut self) {
-        let _ = self.tx.send(AsyncEvent::Terminate);
+        let _ = unwrap!(self.tx.lock()).send(AsyncEvent::Terminate);
     }
 }
 

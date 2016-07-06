@@ -57,7 +57,7 @@ extern crate quick_error;
 extern crate rand;
 extern crate regex;
 extern crate rustc_serialize;
-extern crate toml;
+extern crate serde_value;
 #[macro_use]
 extern crate unwrap;
 extern crate ws;
