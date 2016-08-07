@@ -94,6 +94,7 @@ use std::net::ToSocketAddrs;
 use std::path::Path;
 use std::sync::{Once, ONCE_INIT};
 
+use config_file_handler::FileHandler;
 use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::file::Deserializers;
@@ -116,10 +117,11 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
-        let mut config_path = unwrap!(env::current_exe());
-        config_path.set_file_name(CONFIG_FILE);
+        let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false)
+            .ok()
+            .and_then(|fh| Some(fh.path().to_path_buf()));
 
-        result = if config_path.is_file() {
+        result = if let Some(config_path) = log_config_path {
             let mut deserializers = Deserializers::default();
             deserializers.insert(From::from("async_console"),
                                  Box::new(AsyncConsoleAppenderCreator));
@@ -389,8 +391,6 @@ impl From<()> for ParseLoggerError {
 }
 
 fn parse_loggers_from_env() -> Result<(LogLevelFilter, Vec<Logger>), ParseLoggerError> {
-    use std::env;
-
     if let Ok(var) = env::var("RUST_LOG") {
         parse_loggers(&var)
     } else {

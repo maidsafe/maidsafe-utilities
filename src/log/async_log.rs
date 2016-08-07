@@ -29,6 +29,7 @@ use std::str::FromStr;
 use std::sync::mpsc::{self, Sender};
 use std::sync::Mutex;
 
+use config_file_handler::FileHandler;
 use log::web_socket::WebSocket;
 use log4rs::append::Append;
 use log4rs::encode::Encode;
@@ -217,10 +218,21 @@ impl Deserialize for AsyncFileAppenderCreator {
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
         };
 
-        let path = match map.remove(&Value::String("path".to_owned())) {
-            Some(Value::String(path)) => path,
-            Some(_) => return Err(Box::new(ConfigError("`path` must be a string".to_owned()))),
-            None => return Err(Box::new(ConfigError("`path` is required".to_owned()))),
+        let op_file = match map.remove(&Value::String("output_file_name".to_owned())) {
+            Some(Value::String(op_file)) => op_file,
+            Some(_) => {
+                return Err(Box::new(ConfigError("`output_file_name` must be a string".to_owned())))
+            }
+            None => return Err(Box::new(ConfigError("`output_file_name` is required".to_owned()))),
+        };
+
+        let op_path = match FileHandler::<()>::new(&op_file, true) {
+            Ok(fh) => fh.path().to_path_buf(),
+            Err(e) => {
+                return Err(Box::new(ConfigError(format!("Could not establish log file path: \
+                                                         {:?}",
+                                                        e))))
+            }
         };
 
         let append = match map.remove(&Value::String("append".to_owned())) {
@@ -230,7 +242,7 @@ impl Deserialize for AsyncFileAppenderCreator {
         };
 
         let pattern = try!(parse_pattern(&mut map, false));
-        let appender = try!(AsyncFileAppender::builder(path)
+        let appender = try!(AsyncFileAppender::builder(op_path)
             .encoder(Box::new(pattern))
             .append(append)
             .build());
