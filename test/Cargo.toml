@@ -5,5 +5,5 @@ version = "0.0.1"
 
 [dependencies]
 log = "~0.3.6"
-maidsafe_utilities = "~0.6.0"
+maidsafe_utilities = {path="../"}
 unwrap = "~1.1.0"

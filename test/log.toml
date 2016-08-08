@@ -10,7 +10,7 @@ kind = "console"
 kind = "async_file"
 output_file_name = "This-is-a-sample-output.log"
 pattern = "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}\n"
-append = false
+append = true
 
 [[logger]]
 name = "log_test"
