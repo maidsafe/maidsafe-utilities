@@ -14,14 +14,14 @@ output_file_name = "This-is-a-sample-output.log"
 pattern = "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}\n"
 append = true
 
-[[logger]]
-name = "log_test"
+# This will log all levels from log_test into file and web socket.
+[loggers."log_test"]
 level = "trace"
-appenders = ["aws"]
+appenders = ["aws", "async_file"]
 additive = false # If true it will also send it to the appenders ("display") of parent ("root").
 
-[[logger]]
-name = "log_test::abc"
+# This will log from info level from log_test::abc into file and console.
+[loggers."log_test::abc"]
 level = "info"
 appenders = ["display", "async_file"]
 additive = false # If true it will also send it to the appenders ("aws") of parent ("log_test").
