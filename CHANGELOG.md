@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.9.0]
+- Use config_file_handler crate to derive file locations.
+- Integration with current log4rs (0.4.8) leading to changes in the log.toml specification.
+
 ## [0.8.0]
 - Revert use of `unwrap!` inside `thread!`.
 
