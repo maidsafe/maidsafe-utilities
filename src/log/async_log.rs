@@ -226,7 +226,7 @@ impl Deserialize for AsyncFileAppenderCreator {
             None => return Err(Box::new(ConfigError("`output_file_name` is required".to_owned()))),
         };
 
-        let op_path = match FileHandler::<()>::open(&op_file, true) {
+        let op_path = match FileHandler::<()>::new(&op_file, true) {
             Ok(fh) => fh.path().to_path_buf(),
             Err(e) => {
                 return Err(Box::new(ConfigError(format!("Could not establish log file path: \
