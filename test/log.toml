@@ -1,15 +1,15 @@
-[appender.aws]
+[appenders.aws]
 kind = "async_web_socket"
 server_url = "ws://127.0.0.1:55555" # Make sure to either spawn a web server at this address or
                                     # change this URL.
 
-[appender.display]
+[appenders.display]
 kind = "console"
 
-[appender.async_file]
+[appenders.async_file]
 kind = "async_file"
 output_file_name = "This-is-a-sample-output.log"
-pattern = "%l %d{%H:%M:%S.%f} [%M #FS#%f#FE#:%L] %m"
+pattern = "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}\n"
 append = false
 
 [[logger]]

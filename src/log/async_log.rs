@@ -103,11 +103,19 @@ impl AsyncFileAppenderBuilder {
     }
 
     pub fn build(self) -> io::Result<AsyncAppender> {
-        let file = try!(OpenOptions::new()
-            .write(true)
-            .append(self.append)
-            .create(true)
-            .open(self.path));
+        let file = if self.append {
+            try!(OpenOptions::new()
+                .write(true)
+                .append(true)
+                .create(true)
+                .open(self.path))
+        } else {
+            try!(OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(self.path))
+        };
 
         Ok(AsyncAppender::new(file, self.encoder))
     }
@@ -238,7 +246,7 @@ impl Deserialize for AsyncFileAppenderCreator {
         let append = match map.remove(&Value::String("append".to_owned())) {
             Some(Value::Bool(append)) => append,
             Some(_) => return Err(Box::new(ConfigError("`append` must be a bool".to_owned()))),
-            None => true,
+            None => false,
         };
 
         let pattern = try!(parse_pattern(&mut map, false));
