@@ -45,6 +45,7 @@
 #![cfg_attr(feature="clippy", allow(use_debug, doc_markdown, useless_let_if_seq))]
 
 extern crate bincode;
+extern crate config_file_handler;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]

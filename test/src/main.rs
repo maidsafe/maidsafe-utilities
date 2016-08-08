@@ -19,6 +19,8 @@
 extern crate log;
 #[macro_use]
 extern crate maidsafe_utilities;
+#[macro_use]
+extern crate unwrap;
 
 use std::thread;
 use std::time::Duration;
