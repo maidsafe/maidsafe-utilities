@@ -1,3 +1,5 @@
+# Copy this sample file next to the binary to test (e.g. in "./target/release")
+
 [appenders.aws]
 kind = "async_web_socket"
 server_url = "ws://127.0.0.1:55555" # Make sure to either spawn a web server at this address or
