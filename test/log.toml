@@ -6,6 +6,12 @@ server_url = "ws://127.0.0.1:55555" # Make sure to either spawn a web server at 
 [appender.display]
 kind = "console"
 
+[appender.async_file]
+kind = "async_file"
+output_file_name = "This-is-a-sample-output.log"
+pattern = "%l %d{%H:%M:%S.%f} [%M #FS#%f#FE#:%L] %m"
+append = false
+
 [[logger]]
 name = "log_test"
 level = "trace"
@@ -15,7 +21,7 @@ additive = false # If true it will also send it to the appenders ("display") of 
 [[logger]]
 name = "log_test::abc"
 level = "info"
-appenders = ["display"]
+appenders = ["display", "async_file"]
 additive = false # If true it will also send it to the appenders ("aws") of parent ("log_test").
 
 # Although we don't need root logger, this is just for demonstration purpose.
@@ -23,4 +29,4 @@ additive = false # If true it will also send it to the appenders ("aws") of pare
 level = "error" # This will log all levels which are equal to or more severe to this from all crates
                 # and dependencies including 3rd party crates used in build process not covered by
                 # above loggers ("log_test" and "log_test::abc").
-appenders = ["display"] # May not be supplied if not required.
+appenders = ["display", "async_file"] # May not be supplied if not required.
