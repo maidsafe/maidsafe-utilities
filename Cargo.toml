@@ -12,7 +12,7 @@ version = "0.8.0"
 [dependencies]
 bincode = "~0.5.7"
 clippy = {version = "~0.0.77", optional = true}
-config_file_handler = "~0.3.1"
+config_file_handler = "~0.4.0"
 lazy_static = "~0.2.1"
 log = "~0.3.6"
 log4rs = {version = "~0.4.8", features=["toml"]}
