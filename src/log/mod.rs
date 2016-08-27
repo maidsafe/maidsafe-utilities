@@ -367,9 +367,9 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
 
 fn make_pattern(show_thread_name: bool) -> PatternEncoder {
     let pattern = if show_thread_name {
-        "{l} {d(%H:%M:%S.%f)} {T} [{M} #FS#{f}#FE#:{L}] {m}"
+        "{l} {d(%H:%M:%S.%f)} {T} [{M} #FS#{f}#FE#:{L}] {m}{n}"
     } else {
-        "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}"
+        "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}{n}"
     };
 
     PatternEncoder::new(pattern)

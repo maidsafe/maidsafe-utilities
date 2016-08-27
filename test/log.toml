@@ -11,7 +11,7 @@ kind = "console"
 [appenders.async_file]
 kind = "async_file"
 output_file_name = "This-is-a-sample-output.log"
-pattern = "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}\n"
+pattern = "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}{n}"
 append = true
 
 # This will log all levels from log_test into file and web socket.
