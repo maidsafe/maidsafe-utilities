@@ -15,16 +15,16 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use std::convert::From;
 use std::borrow::Borrow;
+use std::convert::From;
+use std::io::{Error, ErrorKind, Result};
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
-use std::io::{Error, ErrorKind, Result};
-
-use ws;
-use ws::{CloseCode, Handshake, Handler, Message};
 
 use thread::Joiner;
+
+use ws;
+use ws::{CloseCode, Handler, Handshake, Message};
 
 pub struct WebSocket {
     ws_tx: ws::Sender,

@@ -83,7 +83,7 @@ macro_rules! unwrap_option {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     #[test]
     fn unwrap_good_result() {
         let result: Result<u8, ()> = Ok(1);

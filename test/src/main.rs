@@ -22,9 +22,9 @@ extern crate maidsafe_utilities;
 #[macro_use]
 extern crate unwrap;
 
+use maidsafe_utilities::log as safe_log;
 use std::thread;
 use std::time::Duration;
-use maidsafe_utilities::log as safe_log;
 
 fn main() {
     unwrap!(safe_log::init(false));

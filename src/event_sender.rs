@@ -177,9 +177,9 @@ pub enum MaidSafeEventCategory {
 pub type MaidSafeObserver<EventSubset> = EventSender<MaidSafeEventCategory, EventSubset>;
 
 #[cfg(test)]
-mod test {
-    use super::*;
+mod tests {
     use std::sync::mpsc;
+    use super::*;
 
     #[test]
     fn marshall_multiple_events() {

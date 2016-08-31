@@ -116,10 +116,10 @@ pub fn named<S, F>(thread_name: S, func: F) -> Joiner
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
+mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
+    use super::*;
 
     #[test]
     fn raii_thread_joiner() {
