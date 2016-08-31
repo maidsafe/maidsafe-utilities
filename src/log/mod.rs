@@ -87,24 +87,24 @@ pub use self::async_log::MSG_TERMINATOR;
 mod async_log;
 mod web_socket;
 
-use std::borrow::Borrow;
-use std::env;
-use std::fmt::{self, Display, Formatter};
-use std::net::ToSocketAddrs;
-use std::path::Path;
-use std::sync::{Once, ONCE_INIT};
 
 use config_file_handler::FileHandler;
 use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
-use log4rs::file::Deserializers;
 use log4rs::encode::pattern::PatternEncoder;
+use log4rs::file::Deserializers;
 use logger::LogLevelFilter;
 use rand;
 
 use self::async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
                       AsyncFileAppenderCreator, AsyncServerAppender, AsyncServerAppenderCreator,
                       AsyncWebSockAppender, AsyncWebSockAppenderCreator};
+use std::borrow::Borrow;
+use std::env;
+use std::fmt::{self, Display, Formatter};
+use std::net::ToSocketAddrs;
+use std::path::Path;
+use std::sync::{ONCE_INIT, Once};
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
 static CONFIG_FILE: &'static str = "log.toml";
@@ -437,19 +437,19 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-    use super::parse_loggers;
+mod tests {
+
+    use logger::LogLevelFilter;
 
     use std::net::TcpListener;
     use std::str;
     use std::sync::mpsc::{self, Sender};
     use std::thread;
     use std::time::Duration;
-
-    use logger::LogLevelFilter;
+    use super::*;
+    use super::parse_loggers;
     use ws;
-    use ws::{Message, Handler};
+    use ws::{Handler, Message};
 
     #[test]
     fn test_parse_loggers() {
@@ -585,7 +585,7 @@ mod test {
         let (tx, rx) = mpsc::channel();
 
         // Start Log Message Server
-        let _ = thread!("LogMessageWebServer", move || {
+        let _ = ::thread::named("LogMessageWebServer", move || {
             struct Server {
                 tx: Sender<()>,
                 count: usize,

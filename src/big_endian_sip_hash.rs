@@ -15,10 +15,10 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use std::hash::{Hasher, SipHasher};
 
 use bincode::{self, SizeLimit};
 use rustc_serialize::Encodable;
+use std::hash::{Hasher, SipHasher};
 
 /// Generates a deterministic Sip hash from `data`, regardless of the endianness of the host
 /// machine.

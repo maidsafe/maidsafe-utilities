@@ -35,9 +35,6 @@ impl fmt::Debug for Joiner {
     }
 }
 
-/// Deprecated name for `Joiner`
-pub type RaiiThreadJoiner = Joiner;
-
 impl Joiner {
     /// Create a new instance of self-managing thread joiner
     pub fn new(joiner: JoinHandle<()>) -> Joiner {
@@ -46,46 +43,15 @@ impl Joiner {
 
     /// Releases the `Joiner` by detaching the thread.
     pub fn detach(mut self) {
-        let _ = unwrap_option!(self.joiner.take(),
-                               "Programming error: please report this as a bug.");
+        let _ = unwrap!(self.joiner.take());
     }
 }
 
 impl Drop for Joiner {
     fn drop(&mut self) {
         if let Some(joiner) = self.joiner.take() {
-            unwrap_result!(joiner.join());
+            unwrap!(joiner.join());
         }
-    }
-}
-
-/// This macro is intended to be used in all cases where we want to spawn a new thread of execution
-/// and if that is not possible then panic out.
-///
-/// #Examples
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate maidsafe_utilities;
-/// # #[macro_use]
-/// # extern crate unwrap;
-/// # fn main() {
-/// let _ = thread!("DaemonThread", move || {
-///     std::thread::sleep(std::time::Duration::from_millis(10));
-/// });
-///
-/// let sleep_duration_ms = 500;
-/// let _raii_joiner = maidsafe_utilities::thread
-///                                      ::Joiner::new(thread!("ManagedThread", move || {
-///     std::thread::sleep(std::time::Duration::from_millis(sleep_duration_ms));
-/// }));
-/// # }
-/// ```
-#[macro_export]
-macro_rules! thread {
-    ($thread_name:expr, $entry_point:expr) => {
-        unwrap_result!(::std::thread::Builder::new().name($thread_name.to_owned())
-                                             .spawn($entry_point))
     }
 }
 
@@ -116,10 +82,10 @@ pub fn named<S, F>(thread_name: S, func: F) -> Joiner
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
+mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
+    use super::*;
 
     #[test]
     fn raii_thread_joiner() {

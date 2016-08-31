@@ -15,16 +15,13 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use std::convert::From;
 use std::borrow::Borrow;
+use std::convert::From;
+use std::io::{Error, ErrorKind, Result};
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
-use std::io::{Error, ErrorKind, Result};
-
-use ws;
-use ws::{CloseCode, Handshake, Handler, Message};
-
-use thread::Joiner;
+use thread::{self, Joiner};
+use ws::{self, CloseCode, Handler, Handshake, Message};
 
 pub struct WebSocket {
     ws_tx: ws::Sender,
@@ -37,7 +34,7 @@ impl WebSocket {
 
         let (tx, rx) = mpsc::channel();
 
-        let joiner = thread!("WebSocketLogger", move || {
+        let joiner = thread::named("WebSocketLogger", move || {
             struct Client {
                 ws_tx: ws::Sender,
                 tx: Sender<Result<ws::Sender>>,
@@ -75,7 +72,7 @@ impl WebSocket {
             Ok(Ok(ws_tx)) => {
                 Ok(WebSocket {
                     ws_tx: ws_tx,
-                    _raii_joiner: Joiner::new(joiner),
+                    _raii_joiner: joiner,
                 })
             }
             Ok(Err(e)) => Err(e),

@@ -15,11 +15,11 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+
+use rand::{self, Rng, SeedableRng, XorShiftRng};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Mutex;
 use std::thread;
-
-use rand::{self, Rng, SeedableRng, XorShiftRng};
 
 lazy_static! {
     static ref SEED: Mutex<Option<[u32; 4]>> = Mutex::new(None);
@@ -126,8 +126,8 @@ impl Rng for SeededRng {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rand::Rng;
+    use super::*;
 
     // We need the expected message here to ensure that any assertion failure in the test causes the
     // test to fail.  Only the final statement should cause a panic (calling `from_seed()` with a
