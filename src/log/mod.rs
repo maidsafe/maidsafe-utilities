@@ -585,7 +585,7 @@ mod tests {
         let (tx, rx) = mpsc::channel();
 
         // Start Log Message Server
-        let _ = thread!("LogMessageWebServer", move || {
+        let _ = ::thread::named("LogMessageWebServer", move || {
             struct Server {
                 tx: Sender<()>,
                 count: usize,

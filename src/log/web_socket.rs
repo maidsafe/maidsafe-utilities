@@ -20,11 +20,8 @@ use std::convert::From;
 use std::io::{Error, ErrorKind, Result};
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
-
-use thread::Joiner;
-
-use ws;
-use ws::{CloseCode, Handler, Handshake, Message};
+use thread::{self, Joiner};
+use ws::{self, CloseCode, Handler, Handshake, Message};
 
 pub struct WebSocket {
     ws_tx: ws::Sender,
@@ -37,7 +34,7 @@ impl WebSocket {
 
         let (tx, rx) = mpsc::channel();
 
-        let joiner = thread!("WebSocketLogger", move || {
+        let joiner = thread::named("WebSocketLogger", move || {
             struct Client {
                 ws_tx: ws::Sender,
                 tx: Sender<Result<ws::Sender>>,
@@ -75,7 +72,7 @@ impl WebSocket {
             Ok(Ok(ws_tx)) => {
                 Ok(WebSocket {
                     ws_tx: ws_tx,
-                    _raii_joiner: Joiner::new(joiner),
+                    _raii_joiner: joiner,
                 })
             }
             Ok(Err(e)) => Err(e),

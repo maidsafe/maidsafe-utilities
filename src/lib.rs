@@ -64,11 +64,7 @@ extern crate serde_value;
 extern crate unwrap;
 extern crate ws;
 
-#[macro_use]
-mod unwrap_deprecated;
-
 /// Utilities related to threading.
-#[macro_use]
 pub mod thread;
 mod big_endian_sip_hash;
 /// Utilities related to event-subsetting.

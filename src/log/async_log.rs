@@ -39,7 +39,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Mutex;
 use std::sync::mpsc::{self, Sender};
-use thread::Joiner;
+use thread::{self, Joiner};
 
 /// Message terminator for streaming to Log Servers. Servers must look out for this sequence which
 /// demarcates the end of a particular log message.
@@ -381,7 +381,7 @@ impl AsyncAppender {
     fn new<W: 'static + SyncWrite + Send>(mut writer: W, encoder: Box<Encode>) -> Self {
         let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
-        let joiner = thread!("AsyncLog", move || {
+        let joiner = thread::named("AsyncLog", move || {
             let re = unwrap!(Regex::new(r"#FS#?.*[/\\#]([^#]+)#FE#"));
 
             for event in rx.iter() {
@@ -407,7 +407,7 @@ impl AsyncAppender {
         AsyncAppender {
             encoder: encoder,
             tx: Mutex::new(tx),
-            _raii_joiner: Joiner::new(joiner),
+            _raii_joiner: joiner,
         }
     }
 }
