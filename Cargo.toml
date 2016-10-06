@@ -7,19 +7,19 @@ license = "GPL-3.0"
 name = "maidsafe_utilities"
 readme = "README.md"
 repository = "https://github.com/maidsafe/maidsafe_utilities"
-version = "0.9.0"
+version = "0.10.0"
 
 [dependencies]
 bincode = "~0.6.0"
-clippy = {version = "~0.0.86", optional = true}
+clippy = {version = "~0.0.94", optional = true}
 config_file_handler = "~0.4.0"
 lazy_static = "~0.2.1"
 log = "~0.3.6"
 log4rs = {version = "~0.4.8", features=["toml"]}
-quick-error = "1.1.0"
+quick-error = "~1.1.0"
 rand = "~0.3.14"
-regex = "~0.1.73"
+regex = "~0.1.77"
 rustc-serialize = "~0.3.19"
 serde-value = "~0.2.0"
 unwrap = "~1.1.0"
-ws = "~0.5.2"
+ws = "~0.5.3"
