@@ -1,5 +1,10 @@
 # MaidSafe Utilities - Change Log
 
+## [0.10.0]
+- Removed deprecated type and macros.
+- Removed upper limit from serialisation helpers.
+- Fixed log formatting regression.
+
 ## [0.9.0]
 - Use config_file_handler crate to derive file locations.
 - Integration with current log4rs (0.4.8) leading to changes in the log.toml specification.
