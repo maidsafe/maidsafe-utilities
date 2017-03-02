@@ -83,9 +83,9 @@ pub fn named<S, F>(thread_name: S, func: F) -> Joiner
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::thread;
     use std::time::{Duration, Instant};
-    use super::*;
 
     #[test]
     fn raii_thread_joiner() {
@@ -96,9 +96,8 @@ mod tests {
         {
             let time_before = Instant::now();
             {
-                named("JoinerTestDaemon", move || {
-                        thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
-                    })
+                named("JoinerTestDaemon",
+                      move || { thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON)); })
                     .detach();
             }
             let diff = time_before.elapsed();

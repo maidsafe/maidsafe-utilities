@@ -18,14 +18,15 @@
 
 use bincode::{self, SizeLimit};
 use rustc_serialize::Encodable;
-use std::hash::{Hasher, SipHasher};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 
 /// Generates a deterministic Sip hash from `data`, regardless of the endianness of the host
 /// machine.
 pub fn big_endian_sip_hash<T: Encodable>(data: &T) -> u64 {
     let encoded =
         bincode::rustc_serialize::encode(data, SizeLimit::Infinite).ok().unwrap_or_else(Vec::new);
-    let mut hasher = SipHasher::new();
+    let mut hasher = DefaultHasher::new();
     hasher.write(&encoded);
     hasher.finish()
 }
@@ -36,11 +37,11 @@ mod tests {
 
     #[test]
     fn hash_test() {
-        assert_eq!(4363127275821894810, big_endian_sip_hash(&"Test".to_owned()));
-        assert_eq!(4752125029563925438, big_endian_sip_hash(&[24u64, 6, 1314]));
+        assert_eq!(2034663721994522015, big_endian_sip_hash(&"Test".to_owned()));
+        assert_eq!(17786900032859366373, big_endian_sip_hash(&[24u64, 6, 1314]));
         let mut option = Some(1);
-        assert_eq!(17848574548716743387, big_endian_sip_hash(&option));
+        assert_eq!(11997493401453892861, big_endian_sip_hash(&option));
         option = None;
-        assert_eq!(10041351145189524877, big_endian_sip_hash(&option));
+        assert_eq!(7541581120933061747, big_endian_sip_hash(&option));
     }
 }

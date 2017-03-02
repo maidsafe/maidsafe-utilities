@@ -17,7 +17,7 @@
 
 //! # MaidSafe Utilities
 //!
-//! Rust utility functions provided by MaidSafe.
+//! Rust utility functions provided by `MaidSafe`.
 
 #![doc(html_logo_url =
            "https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png",
@@ -51,9 +51,6 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log as logger;
 extern crate log4rs;
-#[cfg_attr(feature="clippy", allow(useless_attribute))]
-#[allow(unused_extern_crates)]
-// Needed because the crate is only used for macros
 #[macro_use]
 extern crate quick_error;
 extern crate rand;
