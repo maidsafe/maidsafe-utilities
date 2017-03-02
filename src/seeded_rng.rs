@@ -126,8 +126,8 @@ impl Rng for SeededRng {
 
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
     use super::*;
+    use rand::Rng;
 
     // We need the expected message here to ensure that any assertion failure in the test causes the
     // test to fail.  Only the final statement should cause a panic (calling `from_seed()` with a

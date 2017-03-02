@@ -123,10 +123,10 @@ pub fn serialised_size_with_limit<T: Encodable>(data: &T, max: u64) -> Option<u6
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use bincode::SizeLimit;
     use bincode::rustc_serialize::{DecodingError, EncodingError};
     use std::io::Cursor;
-    use super::*;
 
     #[test]
     fn serialise_deserialise() {
@@ -167,24 +167,28 @@ mod tests {
         // Try to serialise data above limit
         original_data.push(0);
         if let Err(SerialisationError::Serialise(EncodingError::SizeLimit)) =
-               serialise_with_limit(&original_data, upper_limit) {} else {
+            serialise_with_limit(&original_data, upper_limit) {
+        } else {
             panic!("Expected size limit error.");
         }
         let mut buffer = vec![];
         if let Err(SerialisationError::Serialise(EncodingError::SizeLimit)) =
-               serialise_into_with_limit(&original_data, &mut buffer, upper_limit) {} else {
+            serialise_into_with_limit(&original_data, &mut buffer, upper_limit) {
+        } else {
             panic!("Expected size limit error.");
         }
 
         // Try to deserialise data above limit
         let excessive = unwrap!(serialise(&original_data));
         if let Err(SerialisationError::Deserialise(DecodingError::SizeLimit)) =
-               deserialise_with_limit::<Vec<u64>>(&excessive, upper_limit) {} else {
+            deserialise_with_limit::<Vec<u64>>(&excessive, upper_limit) {
+        } else {
             panic!("Expected size limit error.");
         }
         serialised = Cursor::new(excessive);
         if let Err(SerialisationError::Deserialise(DecodingError::SizeLimit)) =
-               deserialise_from_with_limit::<Cursor<_>, Vec<u64>>(&mut serialised, upper_limit) {} else {
+            deserialise_from_with_limit::<Cursor<_>, Vec<u64>>(&mut serialised, upper_limit) {
+        } else {
             panic!("Expected size limit error.");
         }
     }

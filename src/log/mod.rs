@@ -88,6 +88,10 @@ mod async_log;
 mod web_socket;
 
 
+
+use self::async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
+                      AsyncFileAppenderCreator, AsyncServerAppender, AsyncServerAppenderCreator,
+                      AsyncWebSockAppender, AsyncWebSockAppenderCreator};
 use config_file_handler::FileHandler;
 use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
@@ -95,10 +99,6 @@ use log4rs::encode::pattern::PatternEncoder;
 use log4rs::file::Deserializers;
 use logger::LogLevelFilter;
 use rand;
-
-use self::async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
-                      AsyncFileAppenderCreator, AsyncServerAppender, AsyncServerAppenderCreator,
-                      AsyncWebSockAppender, AsyncWebSockAppenderCreator};
 use std::borrow::Borrow;
 use std::env;
 use std::fmt::{self, Display, Formatter};
@@ -439,6 +439,8 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
 #[cfg(test)]
 mod tests {
 
+    use super::*;
+    use super::parse_loggers;
     use logger::LogLevelFilter;
 
     use std::net::TcpListener;
@@ -446,8 +448,6 @@ mod tests {
     use std::sync::mpsc::{self, Sender};
     use std::thread;
     use std::time::Duration;
-    use super::*;
-    use super::parse_loggers;
     use ws;
     use ws::{Handler, Message};
 
