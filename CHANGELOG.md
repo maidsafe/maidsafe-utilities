@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.10.1]
+- Update CI scripts and remove the requirement of clippy in Cargo.toml.
+- Add timestamping to file-names if specified so in log.toml.
+
 ## [0.10.0]
 - Removed deprecated type and macros.
 - Removed upper limit from serialisation helpers.
