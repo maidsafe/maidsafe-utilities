@@ -75,6 +75,7 @@ impl AsyncFileAppender {
             path: path.as_ref().to_path_buf(),
             encoder: Box::new(PatternEncoder::default()),
             append: true,
+            timestamp: false,
         }
     }
 }
@@ -83,6 +84,7 @@ pub struct AsyncFileAppenderBuilder {
     path: PathBuf,
     encoder: Box<Encode>,
     append: bool,
+    timestamp: bool,
 }
 
 impl AsyncFileAppenderBuilder {
@@ -91,6 +93,7 @@ impl AsyncFileAppenderBuilder {
             path: self.path,
             encoder: encoder,
             append: self.append,
+            timestamp: self.timestamp,
         }
     }
 
@@ -99,10 +102,41 @@ impl AsyncFileAppenderBuilder {
             path: self.path,
             encoder: self.encoder,
             append: append,
+            timestamp: self.timestamp,
         }
     }
 
-    pub fn build(self) -> io::Result<AsyncAppender> {
+    pub fn timestamp(self, timestamp: bool) -> Self {
+        AsyncFileAppenderBuilder {
+            path: self.path,
+            encoder: self.encoder,
+            append: self.append,
+            timestamp: timestamp,
+        }
+    }
+
+    pub fn build(mut self) -> io::Result<AsyncAppender> {
+        use std::time::UNIX_EPOCH;
+
+        if self.timestamp {
+            let path = self.path.clone();
+            let r = path.file_stem()
+                .and_then(|s| s.to_str())
+                .and_then(|stem| {
+                    UNIX_EPOCH.elapsed()
+                        .map_err(|e| println!("Could not get timestamp: {:?}", e))
+                        .ok()
+                        .map(|dur| (dur, stem))
+                })
+                .and_then(|elt| path.extension().and_then(|ex| ex.to_str()).map(|ex| (elt, ex)));
+
+            if let Some(((dur, stem), ext)) = r {
+                self.path.set_file_name(format!("{}-{}.{}", stem, dur.as_secs(), ext));
+            } else {
+                println!("Could not set timestamped file!");
+            }
+        }
+
         let file = if self.append {
             try!(OpenOptions::new()
                 .write(true)
@@ -234,6 +268,14 @@ impl Deserialize for AsyncFileAppenderCreator {
             None => return Err(Box::new(ConfigError("`output_file_name` is required".to_owned()))),
         };
 
+        let timestamp = match map.remove(&Value::String("file_timestamp".to_owned())) {
+            Some(Value::Bool(t)) => t,
+            Some(_) => {
+                return Err(Box::new(ConfigError("`file_timestamp` must be a boolean".to_owned())))
+            }
+            None => false,
+        };
+
         let op_path = match FileHandler::<()>::new(&op_file, true) {
             Ok(fh) => fh.path().to_path_buf(),
             Err(e) => {
@@ -253,6 +295,7 @@ impl Deserialize for AsyncFileAppenderCreator {
         let appender = try!(AsyncFileAppender::builder(op_path)
             .encoder(Box::new(pattern))
             .append(append)
+            .timestamp(timestamp)
             .build());
 
         Ok(Box::new(appender))
