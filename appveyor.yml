@@ -3,11 +3,16 @@ environment:
     RUST_BACKTRACE: 1
   matrix:
     - RUST_VERSION: stable
+
 branches:
   only:
     - master
 
-clone_depth: 50
+cache:
+  - '%USERPROFILE%\.cargo'
+  - '%APPVEYOR_BUILD_FOLDER%\target'
+
+clone_depth: 1
 
 install:
   - ps: |
@@ -20,7 +25,6 @@ platform:
   - x64
 
 configuration:
-#  - Debug
   - Release
 
 build_script:

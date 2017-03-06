@@ -5,8 +5,8 @@
 // licence you accepted on initial access to the Software (the "Licences").
 //
 // By contributing code to the SAFE Network Software, or to this project generally, you agree to be
-// bound by the terms of the MaidSafe Contributor Agreement, version 1.0.  This, along with the
-// Licenses can be found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
+// bound by the terms of the MaidSafe Contributor Agreement.  This, along with the Licenses can be
+// found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
 //
 // Unless required by applicable law or agreed to in writing, the SAFE Network Software distributed
 // under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -120,15 +120,18 @@ impl AsyncFileAppenderBuilder {
 
         if self.timestamp {
             let path = self.path.clone();
-            let r = path.file_stem()
-                .and_then(|s| s.to_str())
-                .and_then(|stem| {
-                    UNIX_EPOCH.elapsed()
-                        .map_err(|e| println!("Could not get timestamp: {:?}", e))
-                        .ok()
-                        .map(|dur| (dur, stem))
-                })
-                .and_then(|elt| path.extension().and_then(|ex| ex.to_str()).map(|ex| (elt, ex)));
+            let r =
+                path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .and_then(|stem| {
+                                  UNIX_EPOCH.elapsed()
+                                      .map_err(|e| println!("Could not get timestamp: {:?}", e))
+                                      .ok()
+                                      .map(|dur| (dur, stem))
+                              })
+                    .and_then(|elt| {
+                                  path.extension().and_then(|ex| ex.to_str()).map(|ex| (elt, ex))
+                              });
 
             if let Some(((dur, stem), ext)) = r {
                 self.path.set_file_name(format!("{}-{}.{}", stem, dur.as_secs(), ext));
@@ -138,17 +141,15 @@ impl AsyncFileAppenderBuilder {
         }
 
         let file = if self.append {
-            try!(OpenOptions::new()
-                .write(true)
+            OpenOptions::new().write(true)
                 .append(true)
                 .create(true)
-                .open(self.path))
+                .open(self.path)?
         } else {
-            try!(OpenOptions::new()
-                .write(true)
+            OpenOptions::new().write(true)
                 .truncate(true)
                 .create(true)
-                .open(self.path))
+                .open(self.path)?
         };
 
         Ok(AsyncAppender::new(file, self.encoder))
@@ -191,8 +192,8 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
     }
 
     pub fn build(self) -> io::Result<AsyncAppender> {
-        let stream = try!(TcpStream::connect(self.addr));
-        try!(stream.set_nodelay(self.no_delay));
+        let stream = TcpStream::connect(self.addr)?;
+        stream.set_nodelay(self.no_delay)?;
         Ok(AsyncAppender::new(stream, self.encoder))
     }
 }
@@ -222,7 +223,7 @@ impl<U: Borrow<str>> AsyncWebSockAppenderBuilder<U> {
     }
 
     pub fn build(self) -> io::Result<AsyncAppender> {
-        let ws = try!(WebSocket::new(self.url));
+        let ws = WebSocket::new(self.url)?;
         Ok(AsyncAppender::new(ws, self.encoder))
     }
 }
@@ -241,7 +242,7 @@ impl Deserialize for AsyncConsoleAppenderCreator {
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
         };
 
-        let pattern = try!(parse_pattern(&mut map, false));
+        let pattern = parse_pattern(&mut map, false)?;
         Ok(Box::new(AsyncConsoleAppender::builder().encoder(Box::new(pattern)).build()))
     }
 }
@@ -291,12 +292,11 @@ impl Deserialize for AsyncFileAppenderCreator {
             None => false,
         };
 
-        let pattern = try!(parse_pattern(&mut map, false));
-        let appender = try!(AsyncFileAppender::builder(op_path)
-            .encoder(Box::new(pattern))
+        let pattern = parse_pattern(&mut map, false)?;
+        let appender = AsyncFileAppender::builder(op_path).encoder(Box::new(pattern))
             .append(append)
             .timestamp(timestamp)
-            .build());
+            .build()?;
 
         Ok(Box::new(appender))
     }
@@ -317,7 +317,7 @@ impl Deserialize for AsyncServerAppenderCreator {
         };
 
         let server_addr = match map.remove(&Value::String("server_addr".to_owned())) {
-            Some(Value::String(addr)) => try!(SocketAddr::from_str(&addr[..])),
+            Some(Value::String(addr)) => SocketAddr::from_str(&addr[..])?,
             Some(_) => {
                 return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned())))
             }
@@ -328,12 +328,11 @@ impl Deserialize for AsyncServerAppenderCreator {
             Some(_) => return Err(Box::new(ConfigError("`no_delay` must be a boolean".to_owned()))),
             None => true,
         };
-        let pattern = try!(parse_pattern(&mut map, false));
+        let pattern = parse_pattern(&mut map, false)?;
 
-        Ok(Box::new(try!(AsyncServerAppender::builder(server_addr)
-            .encoder(Box::new(pattern))
-            .no_delay(no_delay)
-            .build())))
+        Ok(Box::new(AsyncServerAppender::builder(server_addr).encoder(Box::new(pattern))
+                        .no_delay(no_delay)
+                        .build()?))
     }
 }
 
@@ -359,10 +358,8 @@ impl Deserialize for AsyncWebSockAppenderCreator {
             None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
         };
 
-        let pattern = try!(parse_pattern(&mut map, true));
-        Ok(Box::new(try!(AsyncWebSockAppender::builder(server_url)
-            .encoder(Box::new(pattern))
-            .build())))
+        let pattern = parse_pattern(&mut map, true)?;
+        Ok(Box::new(AsyncWebSockAppender::builder(server_url).encoder(Box::new(pattern)).build()?))
     }
 }
 
@@ -458,8 +455,8 @@ impl AsyncAppender {
 impl Append for AsyncAppender {
     fn append(&self, record: &LogRecord) -> Result<(), Box<Error>> {
         let mut msg = Vec::new();
-        try!(self.encoder.encode(&mut SimpleWriter(&mut msg), record));
-        try!(unwrap!(self.tx.lock()).send(AsyncEvent::Log(msg)));
+        self.encoder.encode(&mut SimpleWriter(&mut msg), record)?;
+        unwrap!(self.tx.lock()).send(AsyncEvent::Log(msg))?;
         Ok(())
     }
 }
@@ -477,21 +474,21 @@ trait SyncWrite {
 impl SyncWrite for Stdout {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
         let mut out = self.lock();
-        try!(out.write_all(buf));
+        out.write_all(buf)?;
         out.flush()
     }
 }
 
 impl SyncWrite for File {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
-        try!(self.write_all(buf));
+        self.write_all(buf)?;
         self.flush()
     }
 }
 
 impl SyncWrite for TcpStream {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
-        try!(self.write_all(&buf));
+        self.write_all(buf)?;
         self.write_all(&MSG_TERMINATOR[..])
     }
 }
