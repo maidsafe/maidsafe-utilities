@@ -5,8 +5,8 @@
 // licence you accepted on initial access to the Software (the "Licences").
 //
 // By contributing code to the SAFE Network Software, or to this project generally, you agree to be
-// bound by the terms of the MaidSafe Contributor Agreement, version 1.0.  This, along with the
-// Licenses can be found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
+// bound by the terms of the MaidSafe Contributor Agreement.  This, along with the Licenses can be
+// found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
 //
 // Unless required by applicable law or agreed to in writing, the SAFE Network Software distributed
 // under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -44,9 +44,9 @@ impl WebSocket {
                 fn on_open(&mut self, _: Handshake) -> ws::Result<()> {
                     if self.tx.send(Ok(self.ws_tx.clone())).is_err() {
                         Err(ws::Error {
-                            kind: ws::ErrorKind::Internal,
-                            details: From::from("Channel error - Could not send ws_tx."),
-                        })
+                                kind: ws::ErrorKind::Internal,
+                                details: From::from("Channel error - Could not send ws_tx."),
+                            })
                     } else {
                         Ok(())
                     }
@@ -71,9 +71,9 @@ impl WebSocket {
         match rx.recv() {
             Ok(Ok(ws_tx)) => {
                 Ok(WebSocket {
-                    ws_tx: ws_tx,
-                    _raii_joiner: joiner,
-                })
+                       ws_tx: ws_tx,
+                       _raii_joiner: joiner,
+                   })
             }
             Ok(Err(e)) => Err(e),
             Err(e) => Err(Error::new(ErrorKind::Other, format!("WebSocket Logger Error: {:?}", e))),
@@ -81,9 +81,10 @@ impl WebSocket {
     }
 
     pub fn write_all(&self, buf: &[u8]) -> Result<()> {
-        self.ws_tx
-            .send(Message::Binary(buf.to_owned()))
-            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+        self.ws_tx.send(Message::Binary(buf.to_owned())).map_err(|e| {
+                                                                     Error::new(ErrorKind::Other,
+                                                                                format!("{:?}", e))
+                                                                 })
     }
 }
 

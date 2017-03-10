@@ -5,8 +5,8 @@
 // licence you accepted on initial access to the Software (the "Licences").
 //
 // By contributing code to the SAFE Network Software, or to this project generally, you agree to be
-// bound by the terms of the MaidSafe Contributor Agreement, version 1.0.  This, along with the
-// Licenses can be found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
+// bound by the terms of the MaidSafe Contributor Agreement.  This, along with the Licenses can be
+// found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
 //
 // Unless required by applicable law or agreed to in writing, the SAFE Network Software distributed
 // under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -136,18 +136,18 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
             let console_appender = AsyncConsoleAppender::builder()
                 .encoder(Box::new(make_pattern(show_thread_name)))
                 .build();
-            let console_appender = Appender::builder()
-                .build("async_console".to_owned(), Box::new(console_appender));
+            let console_appender =
+                Appender::builder().build("async_console".to_owned(), Box::new(console_appender));
 
             let (default_level, loggers) = unwrap!(parse_loggers_from_env(),
                                                    "failed to parse RUST_LOG env variable");
 
             let root = Root::builder().appender("async_console".to_owned()).build(default_level);
             let config = match Config::builder()
-                .appender(console_appender)
-                .loggers(loggers)
-                .build(root)
-                .map_err(|e| format!("{}", e)) {
+                      .appender(console_appender)
+                      .loggers(loggers)
+                      .build(root)
+                      .map_err(|e| format!("{}", e)) {
                 Ok(config) => config,
                 Err(e) => {
                     result = Err(e);
@@ -209,8 +209,8 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
             let console_appender = AsyncConsoleAppender::builder()
                 .encoder(Box::new(make_pattern(show_thread_name)))
                 .build();
-            let console_appender = Appender::builder()
-                .build("console".to_owned(), Box::new(console_appender));
+            let console_appender =
+                Appender::builder().build("console".to_owned(), Box::new(console_appender));
 
             config = config.appender(console_appender);
         }
@@ -258,9 +258,9 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
         let mut config = Config::builder().loggers(loggers);
 
         let server_appender = match AsyncServerAppender::builder(server_addr)
-            .encoder(Box::new(make_pattern(show_thread_name)))
-            .build()
-            .map_err(|e| format!("{}", e)) {
+                  .encoder(Box::new(make_pattern(show_thread_name)))
+                  .build()
+                  .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
             Err(e) => {
                 result = Err(e);
@@ -268,8 +268,8 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
             }
         };
 
-        let server_appender = Appender::builder()
-            .build("server".to_owned(), Box::new(server_appender));
+        let server_appender =
+            Appender::builder().build("server".to_owned(), Box::new(server_appender));
 
         config = config.appender(server_appender);
 
@@ -277,8 +277,8 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
             let console_appender = AsyncConsoleAppender::builder()
                 .encoder(Box::new(make_pattern(show_thread_name)))
                 .build();
-            let console_appender = Appender::builder()
-                .build("console".to_owned(), Box::new(console_appender));
+            let console_appender =
+                Appender::builder().build("console".to_owned(), Box::new(console_appender));
 
             config = config.appender(console_appender);
         }
@@ -327,18 +327,19 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
 
         let mut config = Config::builder().loggers(loggers);
 
-        let server_appender = match AsyncWebSockAppender::builder(server_url)
-            .encoder(Box::new(async_log::make_json_pattern(rand::random())))
-            .build()
-            .map_err(|e| format!("{}", e)) {
-            Ok(appender) => appender,
-            Err(e) => {
-                result = Err(e);
-                return;
-            }
-        };
-        let server_appender = Appender::builder()
-            .build("server".to_owned(), Box::new(server_appender));
+        let server_appender =
+            match AsyncWebSockAppender::builder(server_url)
+                      .encoder(Box::new(async_log::make_json_pattern(rand::random())))
+                      .build()
+                      .map_err(|e| format!("{}", e)) {
+                Ok(appender) => appender,
+                Err(e) => {
+                    result = Err(e);
+                    return;
+                }
+            };
+        let server_appender =
+            Appender::builder().build("server".to_owned(), Box::new(server_appender));
 
         config = config.appender(server_appender);
 
@@ -346,8 +347,8 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
             let console_appender = AsyncConsoleAppender::builder()
                 .encoder(Box::new(make_pattern(show_thread_name_in_console)))
                 .build();
-            let console_appender = Appender::builder()
-                .build("console".to_owned(), Box::new(console_appender));
+            let console_appender =
+                Appender::builder().build("console".to_owned(), Box::new(console_appender));
 
             config = config.appender(console_appender);
         }
@@ -405,13 +406,11 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
     let mut grouped_modules = VecDeque::new();
     let mut default_level = DEFAULT_LOG_LEVEL_FILTER;
 
-    for sub_input in input.split(',')
-        .map(str::trim)
-        .filter(|d| !d.is_empty()) {
+    for sub_input in input.split(',').map(str::trim).filter(|d| !d.is_empty()) {
         let mut parts = sub_input.trim().split('=');
         match (parts.next(), parts.next()) {
             (Some(module_name), Some(level)) => {
-                let level_filter = try!(level.parse());
+                let level_filter = level.parse()?;
                 while let Some(module) = grouped_modules.pop_front() {
                     loggers.push(Logger::builder().build(module, level_filter));
                 }
@@ -540,7 +539,7 @@ mod tests {
                 while read_buf.len() - search_frm_index >= MSG_TERMINATOR.len() {
                     if read_buf[search_frm_index..].starts_with(&MSG_TERMINATOR) {
                         log_msgs.push(unwrap!(str::from_utf8(&read_buf[..search_frm_index]))
-                            .to_owned());
+                                          .to_owned());
                         read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
                         search_frm_index = 0;
                     } else {

@@ -2,7 +2,6 @@ env:
   global:
     - RUST_BACKTRACE=1
     - PATH=$PATH:$HOME/.cargo/bin
-    - secure: NVv3DlmpA4AdSd8377CTW/4uNBNTs6M//wD6lU6fnmwLaifbkGfKM7wt77LE/mAFG+RfmOBVgu8wcHQf3i3D3sevbXNLHCeZJO0rW5bO4tAXMrAviVjtS9lsv02ilYYfBtyH29f+YEJcpYs5EdsNzcHSGsj7e+XBgsG7ehAnRYCza+xdw5vbKuz/dH7qR3/yoxlRwQ4/V0oK/DkCicz2dFmcrXDOwZ3qUxIS6PluHY1JXrFsBD1AgGZbg1C3P0tnPMLed5cj9wa9aEu3OkGMlgdZD+JxqOh3Uu9RQQGCDTsJmsJ+mt8OPxrgCSfjhBF2CqEGVrkAfr9Rf0qvPza7AoxptkENgCdo8z4fuKakCO/K1PkKzTnUs7OGIYRNf7PHXUBHLQjo4lP1dWpmsmSL1YfxErT+N8knk377r5QWo8iKfXJa4ubtErS3kkQ/Al3Zw5Cm1IcDmYMU/Wx2FPEhynGwrJkNRpoP1Ma8btOk1mToYzC0MRlhui16GYgM9Oiyy5UmZcZrNZmn7xkmJn9xkz4XlnsYoYCvuk8KJX8YvbAS/s3NQBjQYFhDNGJeflm5k8DDkL6NCrpv0ICfKF+jk44TVpRfTQlBhbndeGv21teTRbT0hNZUjLvquez1t9p49xuxmEcA+7R4gs/SNd22Lr0dRcfOYnXm0jqWESKng5k=
 os:
   - linux
   - osx
@@ -10,9 +9,6 @@ language: rust
 rust:
   - stable
   - nightly-2016-12-19
-matrix:
-  allow_failures:
-    - rust: nightly
 sudo: false
 branches:
   only:
@@ -32,16 +28,16 @@ before_script:
     fi
 script:
   - if [ "${TRAVIS_RUST_VERSION}" = stable ]; then
-        (
-            set -x;
-            cargo fmt -- --write-mode=diff &&
-            cargo test --verbose --release
-        );
+      (
+        set -x;
+        cargo fmt -- --write-mode=diff &&
+        cargo test --release --verbose
+      );
     elif [ "${TRAVIS_OS_NAME}" = linux ]; then
-        (
-            set -x;
-            cargo clippy && cargo clippy --profile=test
-        )
+      (
+        set -x;
+        cargo clippy && cargo clippy --profile=test
+      );
     fi
 before_cache:
   - cargo prune

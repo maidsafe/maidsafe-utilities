@@ -5,8 +5,8 @@
 // licence you accepted on initial access to the Software (the "Licences").
 //
 // By contributing code to the SAFE Network Software, or to this project generally, you agree to be
-// bound by the terms of the MaidSafe Contributor Agreement, version 1.0.  This, along with the
-// Licenses can be found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
+// bound by the terms of the MaidSafe Contributor Agreement.  This, along with the Licenses can be
+// found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
 //
 // Unless required by applicable law or agreed to in writing, the SAFE Network Software distributed
 // under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -75,9 +75,7 @@ pub fn named<S, F>(thread_name: S, func: F) -> Joiner
           F: FnOnce() + Send + 'static
 {
     let thread_name: String = thread_name.into();
-    let join_handle_res = std::thread::Builder::new()
-        .name(thread_name)
-        .spawn(func);
+    let join_handle_res = std::thread::Builder::new().name(thread_name).spawn(func);
     Joiner::new(unwrap!(join_handle_res))
 }
 
@@ -98,7 +96,7 @@ mod tests {
             {
                 named("JoinerTestDaemon",
                       move || { thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON)); })
-                    .detach();
+                        .detach();
             }
             let diff = time_before.elapsed();
 
