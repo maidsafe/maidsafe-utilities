@@ -156,7 +156,7 @@ mod tests {
         let mut original_data = (1u64..8).collect::<Vec<_>>();
         let mut serialised_data = unwrap!(serialise_with_limit(&original_data, upper_limit));
         let mut deserialised_data: Vec<u64> = unwrap!(deserialise(&serialised_data));
-        assert!(original_data == deserialised_data);
+        assert_eq!(original_data, deserialised_data);
 
         serialised_data.clear();
         unwrap!(serialise_into_with_limit(&original_data, &mut serialised_data, upper_limit));
