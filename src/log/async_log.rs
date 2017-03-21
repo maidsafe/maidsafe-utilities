@@ -115,31 +115,7 @@ impl AsyncFileAppenderBuilder {
         }
     }
 
-    pub fn build(mut self) -> io::Result<AsyncAppender> {
-        use std::time::UNIX_EPOCH;
-
-        if self.timestamp {
-            let path = self.path.clone();
-            let r =
-                path.file_stem()
-                    .and_then(|s| s.to_str())
-                    .and_then(|stem| {
-                                  UNIX_EPOCH.elapsed()
-                                      .map_err(|e| println!("Could not get timestamp: {:?}", e))
-                                      .ok()
-                                      .map(|dur| (dur, stem))
-                              })
-                    .and_then(|elt| {
-                                  path.extension().and_then(|ex| ex.to_str()).map(|ex| (elt, ex))
-                              });
-
-            if let Some(((dur, stem), ext)) = r {
-                self.path.set_file_name(format!("{}-{}.{}", stem, dur.as_secs(), ext));
-            } else {
-                println!("Could not set timestamped file!");
-            }
-        }
-
+    pub fn build(self) -> io::Result<AsyncAppender> {
         let file = if self.append {
             OpenOptions::new().write(true)
                 .append(true)
@@ -256,12 +232,14 @@ impl Deserialize for AsyncFileAppenderCreator {
                    config: Value,
                    _deserializers: &Deserializers)
                    -> Result<Box<Append>, Box<Error>> {
+        use std::time::UNIX_EPOCH;
+
         let mut map = match config {
             Value::Map(map) => map,
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
         };
 
-        let op_file = match map.remove(&Value::String("output_file_name".to_owned())) {
+        let mut op_file = match map.remove(&Value::String("output_file_name".to_owned())) {
             Some(Value::String(op_file)) => op_file,
             Some(_) => {
                 return Err(Box::new(ConfigError("`output_file_name` must be a string".to_owned())))
@@ -276,6 +254,32 @@ impl Deserialize for AsyncFileAppenderCreator {
             }
             None => false,
         };
+
+        if timestamp {
+            let path = Path::new(&op_file).to_owned();
+            let mut path_owned = path.to_owned();
+            path.file_stem()
+                .and_then(|s| s.to_str())
+                .and_then(|stem| {
+                              UNIX_EPOCH.elapsed()
+                                  .map_err(|e| println!("Could not get timestamp: {:?}", e))
+                                  .ok()
+                                  .map(|dur| (dur, stem))
+                          })
+                .and_then(|elt| path.extension().and_then(|ex| ex.to_str()).map(|ex| (elt, ex)))
+                .map_or_else(|| println!("Could not set timestamped file!"),
+                             |((dur, stem), ext)| {
+                                 path_owned.set_file_name(format!("{}-{}.{}",
+                                                                  stem,
+                                                                  dur.as_secs(),
+                                                                  ext))
+                             });
+
+            path_owned.file_name()
+                .and_then(|f| f.to_str())
+                .map_or_else(|| println!("Could not extract modified file name from path"),
+                             |f| op_file = f.to_string());
+        }
 
         let op_path = match FileHandler::<()>::new(&op_file, true) {
             Ok(fh) => fh.path().to_path_buf(),
