@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.10.2]
+- Fix the bug which created an empty log file when timestampping was set to true in log.toml
+- Update and conform to rustc 1.16.0 stable, 2017-03-16 nightly and Clippy 0.0.120
+
 ## [0.10.1]
 - Update CI scripts and remove the requirement of clippy in Cargo.toml.
 - Add timestamping to file-names if specified so in log.toml.
