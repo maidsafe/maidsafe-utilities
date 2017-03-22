@@ -77,13 +77,14 @@ impl SeededRng {
         }
     }
 
-    /// Construct a new [`XorShiftRng`](https://doc.rust-lang.org/rand/rand/struct.XorShiftRng.html)
+    /// Construct a new `SeededRng`
     /// using a seed generated from random data provided by `self`.
-    pub fn new_rng(&mut self) -> XorShiftRng {
-        XorShiftRng::from_seed([self.inner.gen(),
-                                self.inner.gen(),
-                                self.inner.gen(),
-                                self.inner.gen()])
+    pub fn new_rng(&mut self) -> SeededRng {
+        let seed = [self.inner.gen(), self.inner.gen(), self.inner.gen(), self.inner.gen()];
+        SeededRng {
+            seed: seed,
+            inner: XorShiftRng::from_seed(seed),
+        }
     }
 }
 
@@ -118,6 +119,15 @@ impl Drop for SeededRng {
 impl Rng for SeededRng {
     fn next_u32(&mut self) -> u32 {
         self.inner.next_u32()
+    }
+
+    fn choose<'a, T>(&mut self, arg: &'a [T]) -> Option<&'a T> {
+        if arg.is_empty() {
+            None
+        } else {
+            let index = self.gen_range(0, arg.len() as u32) as usize;
+            Some(&arg[index])
+        }
     }
 }
 
