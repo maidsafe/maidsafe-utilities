@@ -129,6 +129,14 @@ impl Rng for SeededRng {
             Some(&arg[index])
         }
     }
+
+    fn shuffle<T>(&mut self, values: &mut [T]) {
+        let mut i = values.len();
+        while i >= 2 {
+            i -= 1;
+            values.swap(i, self.gen_range(0, (i + 1) as u32) as usize);
+        }
+    }
 }
 
 
