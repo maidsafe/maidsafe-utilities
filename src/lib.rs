@@ -57,7 +57,6 @@ extern crate ws;
 
 /// Utilities related to threading.
 pub mod thread;
-mod big_endian_sip_hash;
 /// Utilities related to event-subsetting.
 pub mod event_sender;
 /// Allows initialising the `env_logger` with a standard message format.
@@ -66,5 +65,4 @@ mod seeded_rng;
 /// Functions for serialisation and deserialisation
 pub mod serialisation;
 
-pub use big_endian_sip_hash::big_endian_sip_hash;
 pub use seeded_rng::SeededRng;
