@@ -16,12 +16,16 @@
 // relating to use of the SAFE Network Software.
 
 use rand::{self, Rng, SeedableRng, XorShiftRng};
+use std::cell::RefCell;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::rc::Rc;
 use std::sync::Mutex;
 use std::thread;
 
 lazy_static! {
     static ref SEED: Mutex<Option<[u32; 4]>> = Mutex::new(None);
+    static ref GLOBAL_RNG: Mutex<Option<SeededRng>> = Mutex::new(None);
+    static ref THREAD_SEED_OFFSET: Mutex<u32> = Mutex::new(1);
 }
 
 /// A [fast pseudorandom number generator]
@@ -32,6 +36,8 @@ pub struct SeededRng {
     inner: XorShiftRng,
 }
 
+pub struct ThreadSeededRng(Rc<RefCell<SeededRng>>);
+
 impl SeededRng {
     /// Construct a new `SeededRng` using a seed generated from cryptographically secure random
     /// data.
@@ -39,7 +45,7 @@ impl SeededRng {
     /// The seed is only set once for the whole process, so every call to this will yield internal
     /// RNGs which are all seeded identically.
     pub fn new() -> Self {
-        let mut optional_seed = &mut *unwrap!(SEED.lock());
+        let optional_seed = &mut *unwrap!(SEED.lock());
         let seed = if let Some(current_seed) = *optional_seed {
             current_seed
         } else {
@@ -58,7 +64,7 @@ impl SeededRng {
     /// If the underlying static seed has already been initialised to a value different to `seed`,
     /// then this function will panic.
     pub fn from_seed(seed: [u32; 4]) -> Self {
-        let mut optional_seed = &mut *unwrap!(SEED.lock());
+        let optional_seed = &mut *unwrap!(SEED.lock());
         if let Some(current_seed) = *optional_seed {
             if current_seed != seed {
                 panic!("\nThe static seed has already been initialised to a different value via \
@@ -75,6 +81,33 @@ impl SeededRng {
             seed: seed,
             inner: XorShiftRng::from_seed(seed),
         }
+    }
+
+    /// Constructs a thread-local `SeededRng`. The seed is generated via a global `SeededRng` using
+    /// the global seed.
+    pub fn thread_rng() -> ThreadSeededRng {
+        thread_local!{
+            static THREAD_SEEDED: Rc<RefCell<SeededRng>> = {
+                let optional_rng = &mut *unwrap!(GLOBAL_RNG.lock());
+                let rng = if let Some(ref mut rng) = *optional_rng {
+                    rng
+                } else {
+                    *optional_rng = Some(SeededRng::new());
+                    optional_rng.as_mut().unwrap()
+                };
+                let seed_offset = &mut *unwrap!(THREAD_SEED_OFFSET.lock());
+                let seed = [rng.gen::<u32>().wrapping_add(*seed_offset),
+                            rng.gen::<u32>().wrapping_add(*seed_offset),
+                            rng.gen::<u32>().wrapping_add(*seed_offset),
+                            rng.gen::<u32>().wrapping_add(*seed_offset)];
+                *seed_offset += 1;
+                Rc::new(RefCell::new(SeededRng {
+                    seed: seed,
+                    inner: XorShiftRng::from_seed(seed)
+                }))
+            }
+        }
+        ThreadSeededRng(THREAD_SEEDED.with(|x| x.clone()))
     }
 
     /// Construct a new `SeededRng`
@@ -136,6 +169,20 @@ impl Rng for SeededRng {
             i -= 1;
             values.swap(i, self.gen_range(0, (i + 1) as u32) as usize);
         }
+    }
+}
+
+impl Rng for ThreadSeededRng {
+    fn next_u32(&mut self) -> u32 {
+        self.0.borrow_mut().next_u32()
+    }
+
+    fn choose<'a, T>(&mut self, arg: &'a [T]) -> Option<&'a T> {
+        self.0.borrow_mut().choose(arg)
+    }
+
+    fn shuffle<T>(&mut self, values: &mut [T]) {
+        self.0.borrow_mut().shuffle(values)
     }
 }
 
