@@ -25,6 +25,7 @@ use std::thread;
 lazy_static! {
     static ref SEED: Mutex<Option<[u32; 4]>> = Mutex::new(None);
     static ref GLOBAL_RNG: Mutex<Option<SeededRng>> = Mutex::new(None);
+    static ref THREAD_SEED_OFFSET: Mutex<u32> = Mutex::new(1);
 }
 
 /// A [fast pseudorandom number generator]
@@ -94,7 +95,16 @@ impl SeededRng {
                     *optional_rng = Some(SeededRng::new());
                     optional_rng.as_mut().unwrap()
                 };
-                Rc::new(RefCell::new(rng.new_rng()))
+                let seed_offset = &mut *unwrap!(THREAD_SEED_OFFSET.lock());
+                let seed = [rng.gen::<u32>().wrapping_add(*seed_offset),
+                            rng.gen::<u32>().wrapping_add(*seed_offset),
+                            rng.gen::<u32>().wrapping_add(*seed_offset),
+                            rng.gen::<u32>().wrapping_add(*seed_offset)];
+                *seed_offset += 1;
+                Rc::new(RefCell::new(SeededRng {
+                    seed: seed,
+                    inner: XorShiftRng::from_seed(seed)
+                }))
             }
         }
         ThreadSeededRng(THREAD_SEEDED.with(|x| x.clone()))
