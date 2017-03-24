@@ -13,6 +13,7 @@ kind = "async_file"
 output_file_name = "This-is-a-sample-output.log"
 pattern = "{l} {d(%H:%M:%S.%f)} [{M} #FS#{f}#FE#:{L}] {m}{n}"
 append = true
+file_timestamp = true
 
 # This will log all levels from log_test into file and web socket.
 [loggers."log_test"]
