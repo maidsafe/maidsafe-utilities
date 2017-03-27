@@ -49,7 +49,7 @@ extern crate log4rs;
 extern crate quick_error;
 extern crate rand;
 extern crate regex;
-extern crate rustc_serialize;
+extern crate serde;
 extern crate serde_value;
 #[macro_use]
 extern crate unwrap;
