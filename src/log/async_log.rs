@@ -219,7 +219,9 @@ impl Deserialize for AsyncConsoleAppenderCreator {
         };
 
         let pattern = parse_pattern(&mut map, false)?;
-        Ok(Box::new(AsyncConsoleAppender::builder().encoder(Box::new(pattern)).build()))
+        Ok(Box::new(AsyncConsoleAppender::builder()
+                        .encoder(Box::new(pattern))
+                        .build()))
     }
 }
 
@@ -261,12 +263,17 @@ impl Deserialize for AsyncFileAppenderCreator {
             path.file_stem()
                 .and_then(|s| s.to_str())
                 .and_then(|stem| {
-                              UNIX_EPOCH.elapsed()
+                              UNIX_EPOCH
+                                  .elapsed()
                                   .map_err(|e| println!("Could not get timestamp: {:?}", e))
                                   .ok()
                                   .map(|dur| (dur, stem))
                           })
-                .and_then(|elt| path.extension().and_then(|ex| ex.to_str()).map(|ex| (elt, ex)))
+                .and_then(|elt| {
+                              path.extension()
+                                  .and_then(|ex| ex.to_str())
+                                  .map(|ex| (elt, ex))
+                          })
                 .map_or_else(|| println!("Could not set timestamped file!"),
                              |((dur, stem), ext)| {
                                  path_owned.set_file_name(format!("{}-{}.{}",
@@ -275,7 +282,8 @@ impl Deserialize for AsyncFileAppenderCreator {
                                                                   ext))
                              });
 
-            path_owned.file_name()
+            path_owned
+                .file_name()
                 .and_then(|f| f.to_str())
                 .map_or_else(|| println!("Could not extract modified file name from path"),
                              |f| op_file = f.to_string());
@@ -363,7 +371,8 @@ impl Deserialize for AsyncWebSockAppenderCreator {
         };
 
         let pattern = parse_pattern(&mut map, true)?;
-        Ok(Box::new(AsyncWebSockAppender::builder(server_url).encoder(Box::new(pattern)).build()?))
+        Ok(Box::new(AsyncWebSockAppender::builder(server_url).encoder(Box::new(pattern))
+                        .build()?))
     }
 }
 
@@ -459,7 +468,8 @@ impl AsyncAppender {
 impl Append for AsyncAppender {
     fn append(&self, record: &LogRecord) -> Result<(), Box<Error>> {
         let mut msg = Vec::new();
-        self.encoder.encode(&mut SimpleWriter(&mut msg), record)?;
+        self.encoder
+            .encode(&mut SimpleWriter(&mut msg), record)?;
         unwrap!(self.tx.lock()).send(AsyncEvent::Log(msg))?;
         Ok(())
     }

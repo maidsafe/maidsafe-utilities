@@ -142,7 +142,9 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
             let (default_level, loggers) = unwrap!(parse_loggers_from_env(),
                                                    "failed to parse RUST_LOG env variable");
 
-            let root = Root::builder().appender("async_console".to_owned()).build(default_level);
+            let root = Root::builder()
+                .appender("async_console".to_owned())
+                .build(default_level);
             let config = match Config::builder()
                       .appender(console_appender)
                       .loggers(loggers)
@@ -155,7 +157,9 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
                 }
             };
 
-            log4rs::init_config(config).map_err(|e| format!("{}", e)).map(|_| ())
+            log4rs::init_config(config)
+                .map_err(|e| format!("{}", e))
+                .map(|_| ())
         };
     });
 
@@ -222,7 +226,9 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
                 return;
             }
         };
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e)).map(|_| ())
+        result = log4rs::init_config(config)
+            .map_err(|e| format!("{}", e))
+            .map(|_| ())
     });
 
     result
@@ -291,7 +297,9 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
             }
         };
 
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e)).map(|_| ())
+        result = log4rs::init_config(config)
+            .map_err(|e| format!("{}", e))
+            .map(|_| ())
     });
 
     result
@@ -327,17 +335,16 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
 
         let mut config = Config::builder().loggers(loggers);
 
-        let server_appender =
-            match AsyncWebSockAppender::builder(server_url)
-                      .encoder(Box::new(async_log::make_json_pattern(rand::random())))
-                      .build()
-                      .map_err(|e| format!("{}", e)) {
-                Ok(appender) => appender,
-                Err(e) => {
-                    result = Err(e);
-                    return;
-                }
-            };
+        let server_appender = match AsyncWebSockAppender::builder(server_url)
+                  .encoder(Box::new(async_log::make_json_pattern(rand::random())))
+                  .build()
+                  .map_err(|e| format!("{}", e)) {
+            Ok(appender) => appender,
+            Err(e) => {
+                result = Err(e);
+                return;
+            }
+        };
         let server_appender =
             Appender::builder().build("server".to_owned(), Box::new(server_appender));
 
@@ -360,7 +367,9 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
                 return;
             }
         };
-        result = log4rs::init_config(config).map_err(|e| format!("{}", e)).map(|_| ());
+        result = log4rs::init_config(config)
+            .map_err(|e| format!("{}", e))
+            .map(|_| ());
     });
 
     result
@@ -406,7 +415,10 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
     let mut grouped_modules = VecDeque::new();
     let mut default_level = DEFAULT_LOG_LEVEL_FILTER;
 
-    for sub_input in input.split(',').map(str::trim).filter(|d| !d.is_empty()) {
+    for sub_input in input
+            .split(',')
+            .map(str::trim)
+            .filter(|d| !d.is_empty()) {
         let mut parts = sub_input.trim().split('=');
         match (parts.next(), parts.next()) {
             (Some(module_name), Some(level)) => {

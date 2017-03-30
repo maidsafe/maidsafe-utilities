@@ -245,8 +245,12 @@ mod tests {
                                 }
                             });
 
-        assert!(nw_event_sender.send(NetworkEvent::Connected(TOKEN)).is_ok());
-        assert!(ui_event_sender.send(UiEvent::CreateDirectory(DIR_NAME.to_string())).is_ok());
+        assert!(nw_event_sender
+                    .send(NetworkEvent::Connected(TOKEN))
+                    .is_ok());
+        assert!(ui_event_sender
+                    .send(UiEvent::CreateDirectory(DIR_NAME.to_string()))
+                    .is_ok());
         assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 
         ::std::thread::sleep(::std::time::Duration::from_millis(500));
@@ -254,7 +258,9 @@ mod tests {
         assert!(ui_event_sender.send(UiEvent::Terminate).is_err());
         assert!(nw_event_sender.send(NetworkEvent::Disconnected).is_err());
 
-        let result = ui_event_sender.send(UiEvent::CreateDirectory(DIR_NAME.to_owned())).err();
+        let result = ui_event_sender
+            .send(UiEvent::CreateDirectory(DIR_NAME.to_owned()))
+            .err();
         if let EventSenderError::EventSubset(send_err) = unwrap!(result) {
             if let UiEvent::CreateDirectory(dir_name) = send_err.0 {
                 assert_eq!(dir_name, DIR_NAME)

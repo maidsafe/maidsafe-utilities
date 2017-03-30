@@ -81,10 +81,9 @@ impl WebSocket {
     }
 
     pub fn write_all(&self, buf: &[u8]) -> Result<()> {
-        self.ws_tx.send(Message::Binary(buf.to_owned())).map_err(|e| {
-                                                                     Error::new(ErrorKind::Other,
-                                                                                format!("{:?}", e))
-                                                                 })
+        self.ws_tx
+            .send(Message::Binary(buf.to_owned()))
+            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
     }
 }
 
