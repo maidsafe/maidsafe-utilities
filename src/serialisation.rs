@@ -15,8 +15,8 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use bincode::{self, Bounded, Infinite, deserialize_from, serialize, serialize_into, serialized_size,
-              serialized_size_bounded};
+use bincode::{self, Bounded, Infinite, deserialize_from, serialize, serialize_into,
+              serialized_size, serialized_size_bounded};
 use serde::de::Deserialize;
 use serde::ser::Serialize;
 use std::io::{Cursor, Read, Write};
