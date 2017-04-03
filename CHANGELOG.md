@@ -1,5 +1,12 @@
 # MaidSafe Utilities - Change Log
 
+## [0.11.0]
+- Use serde instead of rustc-serialize
+- rustfmt 0.8.1
+- remove big-endian-sip-hasher
+- deterministically seeded thread local version of seeded-rng
+- make shuffle consistent across architectures
+
 ## [0.10.2]
 - Fix the bug which created an empty log file when timestampping was set to true in log.toml
 - Update and conform to rustc 1.16.0 stable, 2017-03-16 nightly and Clippy 0.0.120
