@@ -33,6 +33,7 @@ lazy_static! {
 /// seeding and prints the seed when the thread in which it is created panics.
 pub struct SeededRng {
     seed: [u32; 4],
+    print_seed_on_drop: bool,
     inner: XorShiftRng,
 }
 
@@ -46,15 +47,16 @@ impl SeededRng {
     /// RNGs which are all seeded identically.
     pub fn new() -> Self {
         let optional_seed = &mut *unwrap!(SEED.lock());
-        let seed = if let Some(current_seed) = *optional_seed {
-            current_seed
+        let (seed, print) = if let Some(current_seed) = *optional_seed {
+            (current_seed, false)
         } else {
             let new_seed = [rand::random(), rand::random(), rand::random(), rand::random()];
             *optional_seed = Some(new_seed);
-            new_seed
+            (new_seed, true)
         };
         SeededRng {
             seed: seed,
+            print_seed_on_drop: print,
             inner: XorShiftRng::from_seed(seed),
         }
     }
@@ -65,6 +67,7 @@ impl SeededRng {
     /// then this function will panic.
     pub fn from_seed(seed: [u32; 4]) -> Self {
         let optional_seed = &mut *unwrap!(SEED.lock());
+        let print = optional_seed.is_none();
         if let Some(current_seed) = *optional_seed {
             if current_seed != seed {
                 panic!("\nThe static seed has already been initialised to a different value via \
@@ -79,6 +82,7 @@ impl SeededRng {
 
         SeededRng {
             seed: seed,
+            print_seed_on_drop: print,
             inner: XorShiftRng::from_seed(seed),
         }
     }
@@ -103,6 +107,7 @@ impl SeededRng {
                 *seed_offset += 1;
                 Rc::new(RefCell::new(SeededRng {
                     seed: seed,
+                    print_seed_on_drop: false,
                     inner: XorShiftRng::from_seed(seed)
                 }))
             }
@@ -116,6 +121,7 @@ impl SeededRng {
         let seed = [self.inner.gen(), self.inner.gen(), self.inner.gen(), self.inner.gen()];
         SeededRng {
             seed: seed,
+            print_seed_on_drop: false,
             inner: XorShiftRng::from_seed(seed),
         }
     }
@@ -141,7 +147,7 @@ impl Debug for SeededRng {
 
 impl Drop for SeededRng {
     fn drop(&mut self) {
-        if thread::panicking() {
+        if self.print_seed_on_drop && thread::panicking() {
             let msg = format!("{}", self);
             let border = (0..msg.len()).map(|_| "=").collect::<String>();
             println!("\n{}\n{}\n{}\n", border, msg, border);
