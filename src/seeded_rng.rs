@@ -67,7 +67,7 @@ impl SeededRng {
     /// then this function will panic.
     pub fn from_seed(seed: [u32; 4]) -> Self {
         let optional_seed = &mut *unwrap!(SEED.lock());
-        let mut print = false;
+        let print = optional_seed.is_none();
         if let Some(current_seed) = *optional_seed {
             if current_seed != seed {
                 panic!("\nThe static seed has already been initialised to a different value via \
@@ -77,7 +77,6 @@ impl SeededRng {
                         the single test case.\n");
             }
         } else {
-            print = true;
             *optional_seed = Some(seed);
         }
 
