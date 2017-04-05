@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.11.1]
+- Fix seeded-rng bug in which it was not getting printed for failing tests if there as a passing test that ran before
+- The construction of SeededRng was faulty as it lead to printout of the inner most SeededRng of a stack frame instead of the global one from which all others were derived. This is fixed too.
+
 ## [0.11.0]
 - Use serde instead of rustc-serialize
 - rustfmt 0.8.1
