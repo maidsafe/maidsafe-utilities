@@ -20,10 +20,12 @@ use std::cell::RefCell;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 lazy_static! {
     static ref SEED: Mutex<Option<[u32; 4]>> = Mutex::new(None);
+    static ref ALREADY_PRINTED: AtomicBool = AtomicBool::new(false);
     static ref GLOBAL_RNG: Mutex<Option<SeededRng>> = Mutex::new(None);
     static ref THREAD_SEED_OFFSET: Mutex<u32> = Mutex::new(1);
 }
@@ -31,11 +33,7 @@ lazy_static! {
 /// A [fast pseudorandom number generator]
 /// (https://doc.rust-lang.org/rand/rand/struct.XorShiftRng.html) for use in tests which allows
 /// seeding and prints the seed when the thread in which it is created panics.
-pub struct SeededRng {
-    seed: [u32; 4],
-    print_seed_on_drop: bool,
-    inner: XorShiftRng,
-}
+pub struct SeededRng(XorShiftRng);
 
 pub struct ThreadSeededRng(Rc<RefCell<SeededRng>>);
 
@@ -47,18 +45,14 @@ impl SeededRng {
     /// RNGs which are all seeded identically.
     pub fn new() -> Self {
         let optional_seed = &mut *unwrap!(SEED.lock());
-        let (seed, print) = if let Some(current_seed) = *optional_seed {
-            (current_seed, false)
+        let seed = if let Some(current_seed) = *optional_seed {
+            current_seed
         } else {
             let new_seed = [rand::random(), rand::random(), rand::random(), rand::random()];
             *optional_seed = Some(new_seed);
-            (new_seed, true)
+            new_seed
         };
-        SeededRng {
-            seed: seed,
-            print_seed_on_drop: print,
-            inner: XorShiftRng::from_seed(seed),
-        }
+        SeededRng(XorShiftRng::from_seed(seed))
     }
 
     /// Construct a new `SeededRng` using `seed`.
@@ -67,7 +61,6 @@ impl SeededRng {
     /// then this function will panic.
     pub fn from_seed(seed: [u32; 4]) -> Self {
         let optional_seed = &mut *unwrap!(SEED.lock());
-        let print = optional_seed.is_none();
         if let Some(current_seed) = *optional_seed {
             if current_seed != seed {
                 panic!("\nThe static seed has already been initialised to a different value via \
@@ -80,11 +73,7 @@ impl SeededRng {
             *optional_seed = Some(seed);
         }
 
-        SeededRng {
-            seed: seed,
-            print_seed_on_drop: print,
-            inner: XorShiftRng::from_seed(seed),
-        }
+        SeededRng(XorShiftRng::from_seed(seed))
     }
 
     /// Constructs a thread-local `SeededRng`. The seed is generated via a global `SeededRng` using
@@ -105,11 +94,7 @@ impl SeededRng {
                             rng.gen::<u32>().wrapping_add(*seed_offset),
                             rng.gen::<u32>().wrapping_add(*seed_offset)];
                 *seed_offset += 1;
-                Rc::new(RefCell::new(SeededRng {
-                    seed: seed,
-                    print_seed_on_drop: false,
-                    inner: XorShiftRng::from_seed(seed)
-                }))
+                Rc::new(RefCell::new(SeededRng(XorShiftRng::from_seed(seed))))
             }
         }
         ThreadSeededRng(THREAD_SEEDED.with(|x| x.clone()))
@@ -118,12 +103,8 @@ impl SeededRng {
     /// Construct a new `SeededRng`
     /// using a seed generated from random data provided by `self`.
     pub fn new_rng(&mut self) -> SeededRng {
-        let seed = [self.inner.gen(), self.inner.gen(), self.inner.gen(), self.inner.gen()];
-        SeededRng {
-            seed: seed,
-            print_seed_on_drop: false,
-            inner: XorShiftRng::from_seed(seed),
-        }
+        let new_seed = [self.0.gen(), self.0.gen(), self.0.gen(), self.0.gen()];
+        SeededRng(XorShiftRng::from_seed(new_seed))
     }
 }
 
@@ -135,7 +116,9 @@ impl Default for SeededRng {
 
 impl Display for SeededRng {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "RNG seed: {:?}", self.seed)
+        write!(formatter,
+               "RNG seed: {:?}",
+               *SEED.lock().unwrap_or_else(|e| e.into_inner()))
     }
 }
 
@@ -147,8 +130,8 @@ impl Debug for SeededRng {
 
 impl Drop for SeededRng {
     fn drop(&mut self) {
-        if self.print_seed_on_drop && thread::panicking() {
-            let msg = format!("{}", self);
+        if thread::panicking() && !ALREADY_PRINTED.compare_and_swap(false, true, Ordering::SeqCst) {
+            let msg = format!("{:?}", *SEED.lock().unwrap_or_else(|e| e.into_inner()));
             let border = (0..msg.len()).map(|_| "=").collect::<String>();
             println!("\n{}\n{}\n{}\n", border, msg, border);
         }
@@ -157,7 +140,7 @@ impl Drop for SeededRng {
 
 impl Rng for SeededRng {
     fn next_u32(&mut self) -> u32 {
-        self.inner.next_u32()
+        self.0.next_u32()
     }
 
     fn choose<'a, T>(&mut self, arg: &'a [T]) -> Option<&'a T> {
@@ -198,6 +181,7 @@ impl Rng for ThreadSeededRng {
 mod tests {
     use super::*;
     use rand::Rng;
+    use std::sync::atomic::Ordering;
 
     // We need the expected message here to ensure that any assertion failure in the test causes the
     // test to fail.  Only the final statement should cause a panic (calling `from_seed()` with a
@@ -232,5 +216,28 @@ mod tests {
         }
 
         let _ = SeededRng::from_seed([3, 2, 1, 0]);
+    }
+
+    // Run this in isolation to `seeded_rng` test as it assumes `ALREADY_PRINTED` is not hampered
+    // by other tests (`seeded_rng` test will interfere with this assumption and will produce
+    // random failures as `ALREADY_PRINTED` is a global)
+    #[ignore]
+    #[test]
+    fn print_seed_only_once_for_multiple_failures() {
+        assert!(!ALREADY_PRINTED.load(Ordering::Relaxed));
+        let _ = SeededRng::new();
+        assert!(!ALREADY_PRINTED.load(Ordering::Relaxed));
+
+        for _ in 0..2 {
+            let j = thread::spawn(move || {
+                                      let _rng = SeededRng::new();
+                                      panic!("This is an induced panic to test if \
+                                             `ALREADY_PRINTED` global is toggled only once on \
+                                             panic");
+                                  });
+
+            assert!(j.join().is_err());
+            assert!(ALREADY_PRINTED.load(Ordering::Relaxed));
+        }
     }
 }
