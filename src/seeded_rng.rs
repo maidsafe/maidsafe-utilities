@@ -221,6 +221,9 @@ mod tests {
     // Run this in isolation to `seeded_rng` test as it assumes `ALREADY_PRINTED` is not hampered
     // by other tests (`seeded_rng` test will interfere with this assumption and will produce
     // random failures as `ALREADY_PRINTED` is a global)
+    //
+    // NOTE:
+    // Do not change the name of this function without changing it in the CI scripts.
     #[ignore]
     #[test]
     fn print_seed_only_once_for_multiple_failures() {
