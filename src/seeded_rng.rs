@@ -48,7 +48,10 @@ impl SeededRng {
         let seed = if let Some(current_seed) = *optional_seed {
             current_seed
         } else {
-            let new_seed = [rand::random(), rand::random(), rand::random(), rand::random()];
+            let new_seed = [rand::random(),
+                            rand::random(),
+                            rand::random(),
+                            rand::random()];
             *optional_seed = Some(new_seed);
             new_seed
         };

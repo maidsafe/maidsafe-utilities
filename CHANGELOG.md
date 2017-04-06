@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.11.2]
+- Update `config_file_handler` and `ws` to latest - v0.6.0 and v0.7.0 respectively.
+
 ## [0.11.1]
 - Fix seeded-rng bug in which it was not getting printed for failing tests if there as a passing test that ran before
 - The construction of SeededRng was faulty as it lead to printout of the inner most SeededRng of a stack frame instead of the global one from which all others were derived. This is fixed too.
