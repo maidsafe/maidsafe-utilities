@@ -117,12 +117,14 @@ impl AsyncFileAppenderBuilder {
 
     pub fn build(self) -> io::Result<AsyncAppender> {
         let file = if self.append {
-            OpenOptions::new().write(true)
+            OpenOptions::new()
+                .write(true)
                 .append(true)
                 .create(true)
                 .open(self.path)?
         } else {
-            OpenOptions::new().write(true)
+            OpenOptions::new()
+                .write(true)
                 .truncate(true)
                 .create(true)
                 .open(self.path)?
@@ -305,7 +307,8 @@ impl Deserialize for AsyncFileAppenderCreator {
         };
 
         let pattern = parse_pattern(&mut map, false)?;
-        let appender = AsyncFileAppender::builder(op_path).encoder(Box::new(pattern))
+        let appender = AsyncFileAppender::builder(op_path)
+            .encoder(Box::new(pattern))
             .append(append)
             .timestamp(timestamp)
             .build()?;
@@ -342,7 +345,8 @@ impl Deserialize for AsyncServerAppenderCreator {
         };
         let pattern = parse_pattern(&mut map, false)?;
 
-        Ok(Box::new(AsyncServerAppender::builder(server_addr).encoder(Box::new(pattern))
+        Ok(Box::new(AsyncServerAppender::builder(server_addr)
+                        .encoder(Box::new(pattern))
                         .no_delay(no_delay)
                         .build()?))
     }
@@ -371,7 +375,8 @@ impl Deserialize for AsyncWebSockAppenderCreator {
         };
 
         let pattern = parse_pattern(&mut map, true)?;
-        Ok(Box::new(AsyncWebSockAppender::builder(server_url).encoder(Box::new(pattern))
+        Ok(Box::new(AsyncWebSockAppender::builder(server_url)
+                        .encoder(Box::new(pattern))
                         .build()?))
     }
 }
