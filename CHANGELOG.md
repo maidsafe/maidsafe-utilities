@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.11.3]
+- Make `SeededRng` deterministic even if there are several test threads.
+
 ## [0.11.2]
 - Update `config_file_handler` and `ws` to latest - v0.6.0 and v0.7.0 respectively.
 
