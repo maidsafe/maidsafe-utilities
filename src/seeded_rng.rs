@@ -26,8 +26,11 @@ use std::thread;
 lazy_static! {
     static ref SEED: Mutex<Option<[u32; 4]>> = Mutex::new(None);
     static ref ALREADY_PRINTED: AtomicBool = AtomicBool::new(false);
-    static ref GLOBAL_RNG: Mutex<Option<SeededRng>> = Mutex::new(None);
-    static ref THREAD_SEED_OFFSET: Mutex<u32> = Mutex::new(1);
+}
+
+thread_local! {
+    static GLOBAL_RNG: RefCell<Option<SeededRng>> = RefCell::new(None);
+    static THREAD_SEED_OFFSET: RefCell<u32> = RefCell::new(0);
 }
 
 /// A [fast pseudorandom number generator]
@@ -84,19 +87,21 @@ impl SeededRng {
     pub fn thread_rng() -> ThreadSeededRng {
         thread_local!{
             static THREAD_SEEDED: Rc<RefCell<SeededRng>> = {
-                let optional_rng = &mut *unwrap!(GLOBAL_RNG.lock());
-                let rng = if let Some(ref mut rng) = *optional_rng {
-                    rng
-                } else {
-                    *optional_rng = Some(SeededRng::new());
-                    optional_rng.as_mut().unwrap()
-                };
-                let seed_offset = &mut *unwrap!(THREAD_SEED_OFFSET.lock());
-                let seed = [rng.gen::<u32>().wrapping_add(*seed_offset),
-                            rng.gen::<u32>().wrapping_add(*seed_offset),
-                            rng.gen::<u32>().wrapping_add(*seed_offset),
-                            rng.gen::<u32>().wrapping_add(*seed_offset)];
-                *seed_offset += 1;
+                let seed_offset = THREAD_SEED_OFFSET.with(|offset_cell| {
+                    let mut offset = offset_cell.borrow_mut();
+                    *offset += 1;
+                    *offset
+                });
+                let seed = GLOBAL_RNG.with(|optional_rng_cell| {
+                    let mut optional_rng = optional_rng_cell.borrow_mut();
+                    let mut rng = optional_rng.take().unwrap_or_else(SeededRng::new);
+                    let seed = [rng.gen::<u32>().wrapping_add(seed_offset),
+                                rng.gen::<u32>().wrapping_add(seed_offset),
+                                rng.gen::<u32>().wrapping_add(seed_offset),
+                                rng.gen::<u32>().wrapping_add(seed_offset)];
+                    *optional_rng = Some(rng);
+                    seed
+                });
                 Rc::new(RefCell::new(SeededRng(XorShiftRng::from_seed(seed))))
             }
         }
