@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.11.4]
+- Fix seeded_rng to avoid generating identical rngs.
+
 ## [0.11.3]
 - Make `SeededRng` deterministic even if there are several test threads.
 
