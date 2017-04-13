@@ -18,7 +18,6 @@
 use rand::{self, Rng, SeedableRng, XorShiftRng};
 use std::cell::RefCell;
 use std::fmt::{self, Debug, Display, Formatter};
-use std::rc::Rc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -29,16 +28,13 @@ lazy_static! {
 }
 
 thread_local! {
-    static GLOBAL_RNG: RefCell<Option<SeededRng>> = RefCell::new(None);
-    static THREAD_SEED_OFFSET: RefCell<u32> = RefCell::new(0);
+    static THREAD_RNG: RefCell<Option<SeededRng>> = RefCell::new(None);
 }
 
 /// A [fast pseudorandom number generator]
 /// (https://doc.rust-lang.org/rand/rand/struct.XorShiftRng.html) for use in tests which allows
 /// seeding and prints the seed when the thread in which it is created panics.
 pub struct SeededRng(XorShiftRng);
-
-pub struct ThreadSeededRng(Rc<RefCell<SeededRng>>);
 
 impl SeededRng {
     /// Construct a new `SeededRng` using a seed generated from cryptographically secure random
@@ -84,34 +80,23 @@ impl SeededRng {
 
     /// Constructs a thread-local `SeededRng`. The seed is generated via a global `SeededRng` using
     /// the global seed.
-    pub fn thread_rng() -> ThreadSeededRng {
-        thread_local!{
-            static THREAD_SEEDED: Rc<RefCell<SeededRng>> = {
-                let seed_offset = THREAD_SEED_OFFSET.with(|offset_cell| {
-                    let mut offset = offset_cell.borrow_mut();
-                    *offset += 1;
-                    *offset
-                });
-                let seed = GLOBAL_RNG.with(|optional_rng_cell| {
-                    let mut optional_rng = optional_rng_cell.borrow_mut();
-                    let mut rng = optional_rng.take().unwrap_or_else(SeededRng::new);
-                    let seed = [rng.gen::<u32>().wrapping_add(seed_offset),
-                                rng.gen::<u32>().wrapping_add(seed_offset),
-                                rng.gen::<u32>().wrapping_add(seed_offset),
-                                rng.gen::<u32>().wrapping_add(seed_offset)];
-                    *optional_rng = Some(rng);
-                    seed
-                });
-                Rc::new(RefCell::new(SeededRng(XorShiftRng::from_seed(seed))))
-            }
-        }
-        ThreadSeededRng(THREAD_SEEDED.with(|x| x.clone()))
+    pub fn thread_rng() -> SeededRng {
+        THREAD_RNG.with(|optional_rng_cell| {
+                            let mut optional_rng = optional_rng_cell.borrow_mut();
+                            let mut rng = optional_rng.take().unwrap_or_else(SeededRng::new);
+                            let new_rng = rng.new_rng();
+                            *optional_rng = Some(rng);
+                            new_rng
+                        })
     }
 
     /// Construct a new `SeededRng`
     /// using a seed generated from random data provided by `self`.
     pub fn new_rng(&mut self) -> SeededRng {
-        let new_seed = [self.0.gen(), self.0.gen(), self.0.gen(), self.0.gen()];
+        let new_seed = [self.0.next_u32().wrapping_add(self.0.next_u32()),
+                        self.0.next_u32().wrapping_add(self.0.next_u32()),
+                        self.0.next_u32().wrapping_add(self.0.next_u32()),
+                        self.0.next_u32().wrapping_add(self.0.next_u32())];
         SeededRng(XorShiftRng::from_seed(new_seed))
     }
 }
@@ -169,21 +154,6 @@ impl Rng for SeededRng {
     }
 }
 
-impl Rng for ThreadSeededRng {
-    fn next_u32(&mut self) -> u32 {
-        self.0.borrow_mut().next_u32()
-    }
-
-    fn choose<'a, T>(&mut self, arg: &'a [T]) -> Option<&'a T> {
-        self.0.borrow_mut().choose(arg)
-    }
-
-    fn shuffle<T>(&mut self, values: &mut [T]) {
-        self.0.borrow_mut().shuffle(values)
-    }
-}
-
-
 
 #[cfg(test)]
 mod tests {
@@ -212,8 +182,8 @@ mod tests {
 
             let mut rng1_from_seeded_rng1 = seeded_rng1.new_rng();
             let mut rng2_from_seeded_rng1 = seeded_rng1.new_rng();
-            let expected1 = 36055743652167817;
-            let expected2 = 19781043125127688;
+            let expected1 = 36629641468946701;
+            let expected2 = 1225987531410437264;
             assert_eq!(rng1_from_seeded_rng1.next_u64(), expected1);
             assert_eq!(rng2_from_seeded_rng1.next_u64(), expected2);
 
