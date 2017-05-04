@@ -10,15 +10,15 @@ repository = "https://github.com/maidsafe/maidsafe_utilities"
 version = "0.11.4"
 
 [dependencies]
-bincode = "~1.0.0-alpha6"
-config_file_handler = "~0.6.0"
+bincode = "~0.8.0"
+config_file_handler = { git = "https://github.com/maqi/config_file_handler", branch = "update" }
 lazy_static = "~0.2.5"
 log = "~0.3.7"
-log4rs = {version = "~0.4.8", features=["toml"]}
+log4rs = "~0.7.0"
 quick-error = "~1.1.0"
 rand = "~0.3.15"
 regex = "~0.1.77"
-serde = "~0.9.12"
-serde-value = "~0.2.0"
+serde = "~1.0.2"
+serde-value = "~0.5.0"
 unwrap = "~1.1.0"
 ws = "~0.7.0"
