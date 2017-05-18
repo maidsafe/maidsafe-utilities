@@ -38,6 +38,10 @@
 #![allow(box_pointers, fat_ptr_transmutes, missing_copy_implementations,
          missing_debug_implementations, variant_size_differences)]
 
+// TODO: Allow `panic_params` until https://github.com/Manishearth/rust-clippy/issues/768
+//       is resolved.
+#![cfg_attr(all(feature="cargo-clippy", test), allow(panic_params))]
+
 extern crate bincode;
 extern crate config_file_handler;
 #[macro_use]

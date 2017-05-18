@@ -123,13 +123,10 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
 
         result = if let Some(config_path) = log_config_path {
             let mut deserializers = Deserializers::default();
-            deserializers.insert(From::from("async_console"),
-                                 Box::new(AsyncConsoleAppenderCreator));
-            deserializers.insert(From::from("async_file"), Box::new(AsyncFileAppenderCreator));
-            deserializers.insert(From::from("async_server"),
-                                 Box::new(AsyncServerAppenderCreator));
-            deserializers.insert(From::from("async_web_socket"),
-                                 Box::new(AsyncWebSockAppenderCreator));
+            deserializers.insert(From::from("async_console"), AsyncConsoleAppenderCreator);
+            deserializers.insert(From::from("async_file"), AsyncFileAppenderCreator);
+            deserializers.insert(From::from("async_server"), AsyncServerAppenderCreator);
+            deserializers.insert(From::from("async_web_socket"), AsyncWebSockAppenderCreator);
 
             log4rs::init_file(config_path, deserializers).map_err(|e| format!("{}", e))
         } else {
@@ -562,7 +559,7 @@ mod tests {
 
             for it in log_msgs.iter().enumerate() {
                 assert!(it.1.contains(&format!("This is message {}", it.0)[..]));
-                assert!(!it.1.contains("#"));
+                assert!(!it.1.contains('#'));
             }
         });
 

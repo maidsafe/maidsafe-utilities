@@ -17,7 +17,7 @@
 
 use bincode::{self, Bounded, Infinite, deserialize_from, serialize, serialize_into,
               serialized_size, serialized_size_bounded};
-use serde::de::Deserialize;
+use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::io::{Cursor, Read, Write};
 
@@ -57,7 +57,7 @@ pub fn serialise_with_limit<T>(data: &T, size_limit: Bounded) -> Result<Vec<u8>,
 
 /// Deserialise a `Deserialize` type with no limit on the size of the serialised data.
 pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
-    where T: Deserialize
+    where T: DeserializeOwned
 {
     let mut data = Cursor::new(data);
     deserialize_from(&mut data, Infinite).map_err(|e| SerialisationError::Deserialise(*e))
@@ -65,7 +65,7 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
 
 /// Deserialise a `Deserialize` type with max size limit specified.
 pub fn deserialise_with_limit<T>(data: &[u8], size_limit: Bounded) -> Result<T, SerialisationError>
-    where T: Deserialize
+    where T: DeserializeOwned
 {
     let mut data = Cursor::new(data);
     deserialize_from(&mut data, size_limit).map_err(|e| SerialisationError::Deserialise(*e))
@@ -89,14 +89,16 @@ pub fn serialise_into_with_limit<T: Serialize, W: Write>(data: &T,
 
 /// Deserialise a `Deserialize` type directly from a `Read` with no limit on the size of the
 /// serialised data.
-pub fn deserialise_from<R: Read, T: Deserialize>(read: &mut R) -> Result<T, SerialisationError> {
+pub fn deserialise_from<R: Read, T: DeserializeOwned>(read: &mut R)
+                                                      -> Result<T, SerialisationError> {
     deserialize_from(read, Infinite).map_err(|e| SerialisationError::Deserialise(*e))
 }
 
 /// Deserialise a `Deserialize` type directly from a `Read` with max size limit specified.
-pub fn deserialise_from_with_limit<R: Read, T: Deserialize>(read: &mut R,
-                                                            size_limit: Bounded)
-                                                            -> Result<T, SerialisationError> {
+pub fn deserialise_from_with_limit<R: Read, T: DeserializeOwned>
+    (read: &mut R,
+     size_limit: Bounded)
+     -> Result<T, SerialisationError> {
     deserialize_from(read, size_limit).map_err(|e| SerialisationError::Deserialise(*e))
 }
 
