@@ -7,11 +7,11 @@ license = "GPL-3.0"
 name = "maidsafe_utilities"
 readme = "README.md"
 repository = "https://github.com/maidsafe/maidsafe_utilities"
-version = "0.11.4"
+version = "0.12.0"
 
 [dependencies]
 bincode = "~0.8.0"
-config_file_handler = { git = "https://github.com/maqi/config_file_handler", branch = "update" }
+config_file_handler = "~0.7.0"
 lazy_static = "~0.2.5"
 log = "~0.3.7"
 log4rs = "~0.7.0"

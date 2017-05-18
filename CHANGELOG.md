@@ -1,5 +1,10 @@
 # MaidSafe Utilities - Change Log
 
+## [0.12.0]
+- Update to Rust 1.17 stable
+- Update serde serialisation
+- Update CI to run cargo_install from QA
+
 ## [0.11.4]
 - Fix seeded_rng to avoid generating identical rngs.
 
