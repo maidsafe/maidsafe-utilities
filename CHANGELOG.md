@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.12.1]
+- Fix to make log4rs use the toml format for our log.toml file.
+
 ## [0.12.0]
 - Update to Rust 1.17 stable
 - Update serde serialisation
