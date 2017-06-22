@@ -50,7 +50,6 @@
 //! extern crate unwrap;
 //! extern crate maidsafe_utilities;
 //! use std::thread;
-//! use maidsafe_utilities::thread::Joiner;
 //!
 //! mod my_mod {
 //!     pub fn show_warning() {

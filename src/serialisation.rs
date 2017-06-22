@@ -15,7 +15,7 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use bincode::{self, Bounded, Infinite, deserialize_from, serialize, serialize_into,
+use bincode::{Bounded, Error, ErrorKind, Infinite, deserialize_from, serialize, serialize_into,
               serialized_size, serialized_size_bounded};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
@@ -26,14 +26,14 @@ quick_error! {
     #[derive(Debug)]
     pub enum SerialisationError {
         /// Error during serialisation (encoding).
-        Serialise(err: bincode::ErrorKind) {
+        Serialise(err: ErrorKind) {
             description("Serialise error")
             display("Serialise error: {}", err)
             cause(err)
         }
 
         /// Error during deserialisation (decoding).
-        Deserialise(err: bincode::ErrorKind) {
+        Deserialise(err: ErrorKind) {
             description("Deserialise error")
             display("Deserialise error: {}", err)
             cause(err)
@@ -57,18 +57,22 @@ pub fn serialise_with_limit<T>(data: &T, size_limit: Bounded) -> Result<Vec<u8>,
 
 /// Deserialise a `Deserialize` type with no limit on the size of the serialised data.
 pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
-    where T: DeserializeOwned
+    where T: Serialize + DeserializeOwned
 {
-    let mut data = Cursor::new(data);
-    deserialize_from(&mut data, Infinite).map_err(|e| SerialisationError::Deserialise(*e))
+    let mut cursor = Cursor::new(data);
+    deserialize_from(&mut cursor, Infinite)
+        .and_then(|parsed| check_deserialised_size(data, parsed))
+        .map_err(|e| SerialisationError::Deserialise(*e))
 }
 
 /// Deserialise a `Deserialize` type with max size limit specified.
 pub fn deserialise_with_limit<T>(data: &[u8], size_limit: Bounded) -> Result<T, SerialisationError>
-    where T: DeserializeOwned
+    where T: Serialize + DeserializeOwned
 {
-    let mut data = Cursor::new(data);
-    deserialize_from(&mut data, size_limit).map_err(|e| SerialisationError::Deserialise(*e))
+    let mut cursor = Cursor::new(data);
+    deserialize_from(&mut cursor, size_limit)
+        .and_then(|parsed| check_deserialised_size(data, parsed))
+        .map_err(|e| SerialisationError::Deserialise(*e))
 }
 
 /// Serialise an `Serialize` type directly into a `Write` with no limit on the size of the
@@ -115,6 +119,16 @@ pub fn serialised_size_with_limit<T: Serialize>(data: &T, max: u64) -> Option<u6
     serialized_size_bounded(data, max)
 }
 
+fn check_deserialised_size<T>(serialised: &[u8], deserialised: T) -> Result<T, Error>
+    where T: Serialize + DeserializeOwned
+{
+    if serialized_size(&deserialised) == serialised.len() as u64 {
+        Ok(deserialised)
+    } else {
+        Err(Box::new(ErrorKind::Custom("Not all bytes of slice consumed.".to_string())))
+    }
+}
+
 
 
 #[cfg(test)]
@@ -125,16 +139,25 @@ mod tests {
 
     #[test]
     fn serialise_deserialise() {
-        let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
+        let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "SomeString".to_string());
 
         let serialised_data = unwrap!(serialise(&original_data));
         let deserialised_data: (Vec<u8>, Vec<i64>, String) = unwrap!(deserialise(&serialised_data));
         assert_eq!(original_data, deserialised_data);
+
+        // Try to parse a `String` into a `u64` to check the unused bytes triggers an error.
+        let serialised_string = unwrap!(serialise(&"Another string".to_string()));
+        if let Err(SerialisationError::Deserialise(ErrorKind::Custom(string))) =
+            deserialise::<u64>(&serialised_string) {
+            assert_eq!(&string, "Not all bytes of slice consumed.");
+        } else {
+            panic!("Failed to return the right error type.");
+        }
     }
 
     #[test]
     fn serialise_into_deserialise_from() {
-        let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "Some-String".to_owned());
+        let original_data = (vec![0u8, 1, 3, 9], vec![-1i64, 888, -8765], "SomeString".to_string());
         let mut serialised_data = vec![];
         unwrap!(serialise_into(&original_data, &mut serialised_data));
 
