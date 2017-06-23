@@ -113,6 +113,22 @@ static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 ///
 /// For further details, see the [module docs](index.html).
 pub fn init(show_thread_name: bool) -> Result<(), String> {
+    init_impl(show_thread_name, None)
+}
+
+/// Initialises the `env_logger` for output to stdout and takes
+/// an output file name that will override the log configuration.
+///
+/// For further details, see the [module docs](index.html).
+pub fn init_with_output_file<S>(show_thread_name: bool,
+                                output_file_name_override: S)
+                                -> Result<(), String>
+    where S: Into<String>
+{
+    init_impl(show_thread_name, Some(output_file_name_override.into()))
+}
+
+fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
@@ -123,7 +139,8 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
         result = if let Some(config_path) = log_config_path {
             let mut deserializers = Deserializers::default();
             deserializers.insert(From::from("async_console"), AsyncConsoleAppenderCreator);
-            deserializers.insert(From::from("async_file"), AsyncFileAppenderCreator);
+            deserializers.insert(From::from("async_file"),
+                                 AsyncFileAppenderCreator(op_file_name_override));
             deserializers.insert(From::from("async_server"), AsyncServerAppenderCreator);
             deserializers.insert(From::from("async_web_socket"), AsyncWebSockAppenderCreator);
 
