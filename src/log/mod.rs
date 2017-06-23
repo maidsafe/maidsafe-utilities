@@ -685,7 +685,7 @@ mod tests {
         if current_dir.as_path() != current_bin_dir.as_path() {
             // Try to copy log.toml from the current dir to bin dir
             // so that the config_file_handler can find it
-            current_dir.push("log.toml");
+            current_dir.push("sample_log_file/log.toml");
             current_bin_dir.push("log.toml");
 
             let _ = unwrap!(fs::copy(current_dir, current_bin_dir));
