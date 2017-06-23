@@ -15,7 +15,7 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use bincode::{Bounded, Error, ErrorKind, Infinite, deserialize_from, serialize, serialize_into,
+use bincode::{Bounded, ErrorKind, Infinite, deserialize_from, serialize, serialize_into,
               serialized_size, serialized_size_bounded};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
@@ -32,11 +32,17 @@ quick_error! {
             cause(err)
         }
 
-        /// Error during deserialisation (decoding).
+        /// Bincode error during deserialisation (decoding).
         Deserialise(err: ErrorKind) {
             description("Deserialise error")
             display("Deserialise error: {}", err)
             cause(err)
+        }
+
+        /// Not all input bytes were consumed when deserialising (decoding).
+        DeserialiseExtraBytes {
+            description("DeserialiseExtraBytes error")
+            display("Deserialise error: Not all bytes of slice consumed")
         }
     }
 }
@@ -61,8 +67,8 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
 {
     let mut cursor = Cursor::new(data);
     deserialize_from(&mut cursor, Infinite)
-        .and_then(|parsed| check_deserialised_size(data, parsed))
         .map_err(|e| SerialisationError::Deserialise(*e))
+        .and_then(|parsed| check_deserialised_size(data, parsed))
 }
 
 /// Deserialise a `Deserialize` type with max size limit specified.
@@ -71,8 +77,8 @@ pub fn deserialise_with_limit<T>(data: &[u8], size_limit: Bounded) -> Result<T, 
 {
     let mut cursor = Cursor::new(data);
     deserialize_from(&mut cursor, size_limit)
-        .and_then(|parsed| check_deserialised_size(data, parsed))
         .map_err(|e| SerialisationError::Deserialise(*e))
+        .and_then(|parsed| check_deserialised_size(data, parsed))
 }
 
 /// Serialise an `Serialize` type directly into a `Write` with no limit on the size of the
@@ -119,13 +125,13 @@ pub fn serialised_size_with_limit<T: Serialize>(data: &T, max: u64) -> Option<u6
     serialized_size_bounded(data, max)
 }
 
-fn check_deserialised_size<T>(serialised: &[u8], deserialised: T) -> Result<T, Error>
+fn check_deserialised_size<T>(serialised: &[u8], deserialised: T) -> Result<T, SerialisationError>
     where T: Serialize + DeserializeOwned
 {
     if serialized_size(&deserialised) == serialised.len() as u64 {
         Ok(deserialised)
     } else {
-        Err(Box::new(ErrorKind::Custom("Not all bytes of slice consumed.".to_string())))
+        Err(SerialisationError::DeserialiseExtraBytes)
     }
 }
 
@@ -147,9 +153,8 @@ mod tests {
 
         // Try to parse a `String` into a `u64` to check the unused bytes triggers an error.
         let serialised_string = unwrap!(serialise(&"Another string".to_string()));
-        if let Err(SerialisationError::Deserialise(ErrorKind::Custom(string))) =
+        if let Err(SerialisationError::DeserialiseExtraBytes) =
             deserialise::<u64>(&serialised_string) {
-            assert_eq!(&string, "Not all bytes of slice consumed.");
         } else {
             panic!("Failed to return the right error type.");
         }
