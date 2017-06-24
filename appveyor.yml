@@ -33,3 +33,4 @@ build_script:
 test_script:
   - cargo test --verbose --release
   - cargo test --verbose --release -- --ignored print_seed_only_once_for_multiple_failures
+  - cargo test --verbose --release -- --ignored override_log_path

@@ -228,7 +228,8 @@ impl Deserialize for AsyncConsoleAppenderCreator {
     }
 }
 
-pub struct AsyncFileAppenderCreator;
+/// Takes an optional parameter for an output file name override.
+pub struct AsyncFileAppenderCreator(pub Option<String>);
 
 impl Deserialize for AsyncFileAppenderCreator {
     type Trait = Append;
@@ -245,12 +246,19 @@ impl Deserialize for AsyncFileAppenderCreator {
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
         };
 
-        let mut op_file = match map.remove(&Value::String("output_file_name".to_owned())) {
-            Some(Value::String(op_file)) => op_file,
-            Some(_) => {
-                return Err(Box::new(ConfigError("`output_file_name` must be a string".to_owned())))
+        let mut op_file = if let Some(op_file_name_override) = self.0.clone() {
+            op_file_name_override
+        } else {
+            match map.remove(&Value::String("output_file_name".to_owned())) {
+                Some(Value::String(op_file)) => op_file,
+                Some(_) => {
+                    return Err(Box::new(ConfigError("`output_file_name` must be a string"
+                                                        .to_owned())))
+                }
+                None => {
+                    return Err(Box::new(ConfigError("`output_file_name` is required".to_owned())))
+                }
             }
-            None => return Err(Box::new(ConfigError("`output_file_name` is required".to_owned()))),
         };
 
         let timestamp = match map.remove(&Value::String("file_timestamp".to_owned())) {

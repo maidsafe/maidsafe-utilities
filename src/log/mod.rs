@@ -113,53 +113,63 @@ static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 ///
 /// For further details, see the [module docs](index.html).
 pub fn init(show_thread_name: bool) -> Result<(), String> {
-    let mut result = Err("Logger already initialised".to_owned());
+    init_once_guard(|| init_impl(show_thread_name, None))
+}
 
-    INITIALISE_LOGGER.call_once(|| {
-        let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false)
-            .ok()
-            .and_then(|fh| Some(fh.path().to_path_buf()));
+/// Initialises the `env_logger` for output to stdout and takes
+/// an output file name that will override the log configuration.
+///
+/// For further details, see the [module docs](index.html).
+pub fn init_with_output_file<S>(show_thread_name: bool,
+                                output_file_name_override: S)
+                                -> Result<(), String>
+    where S: Into<String>
+{
+    init_once_guard(|| init_impl(show_thread_name, Some(output_file_name_override.into())))
+}
 
-        result = if let Some(config_path) = log_config_path {
-            let mut deserializers = Deserializers::default();
-            deserializers.insert(From::from("async_console"), AsyncConsoleAppenderCreator);
-            deserializers.insert(From::from("async_file"), AsyncFileAppenderCreator);
-            deserializers.insert(From::from("async_server"), AsyncServerAppenderCreator);
-            deserializers.insert(From::from("async_web_socket"), AsyncWebSockAppenderCreator);
+fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> Result<(), String> {
+    let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false)
+        .ok()
+        .and_then(|fh| Some(fh.path().to_path_buf()));
 
-            log4rs::init_file(config_path, deserializers).map_err(|e| format!("{}", e))
-        } else {
-            let console_appender = AsyncConsoleAppender::builder()
-                .encoder(Box::new(make_pattern(show_thread_name)))
-                .build();
-            let console_appender =
-                Appender::builder().build("async_console".to_owned(), Box::new(console_appender));
+    if let Some(config_path) = log_config_path {
+        let mut deserializers = Deserializers::default();
+        deserializers.insert(From::from("async_console"), AsyncConsoleAppenderCreator);
+        deserializers.insert(From::from("async_file"),
+                             AsyncFileAppenderCreator(op_file_name_override));
+        deserializers.insert(From::from("async_server"), AsyncServerAppenderCreator);
+        deserializers.insert(From::from("async_web_socket"), AsyncWebSockAppenderCreator);
 
-            let (default_level, loggers) = unwrap!(parse_loggers_from_env(),
-                                                   "failed to parse RUST_LOG env variable");
+        log4rs::init_file(config_path, deserializers).map_err(|e| format!("{}", e))
+    } else {
+        let console_appender = AsyncConsoleAppender::builder()
+            .encoder(Box::new(make_pattern(show_thread_name)))
+            .build();
+        let console_appender =
+            Appender::builder().build("async_console".to_owned(), Box::new(console_appender));
 
-            let root = Root::builder()
-                .appender("async_console".to_owned())
-                .build(default_level);
-            let config = match Config::builder()
-                      .appender(console_appender)
-                      .loggers(loggers)
-                      .build(root)
-                      .map_err(|e| format!("{}", e)) {
-                Ok(config) => config,
-                Err(e) => {
-                    result = Err(e);
-                    return;
-                }
-            };
+        let (default_level, loggers) = unwrap!(parse_loggers_from_env(),
+                                               "failed to parse RUST_LOG env variable");
 
-            log4rs::init_config(config)
-                .map_err(|e| format!("{}", e))
-                .map(|_| ())
+        let root = Root::builder()
+            .appender("async_console".to_owned())
+            .build(default_level);
+        let config = match Config::builder()
+                  .appender(console_appender)
+                  .loggers(loggers)
+                  .build(root)
+                  .map_err(|e| format!("{}", e)) {
+            Ok(config) => config,
+            Err(e) => {
+                return Err(e);
+            }
         };
-    });
 
-    result
+        log4rs::init_config(config)
+            .map_err(|e| format!("{}", e))
+            .map(|_| ())
+    }
 }
 
 /// Initialises the `env_logger` for output to a file and optionally to the console asynchronously.
@@ -238,14 +248,11 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
                                         show_thread_name: bool,
                                         log_to_console: bool)
                                         -> Result<(), String> {
-    let mut result = Err("Logger already initialised".to_owned());
-
-    INITIALISE_LOGGER.call_once(|| {
+    init_once_guard(|| {
         let (default_level, loggers) = match parse_loggers_from_env() {
             Ok((level, loggers)) => (level, loggers),
             Err(error) => {
-                result = Err(format!("{}", error));
-                return;
+                return Err(format!("{}", error));
             }
         };
 
@@ -265,8 +272,7 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
                   .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
             Err(e) => {
-                result = Err(e);
-                return;
+                return Err(e);
             }
         };
 
@@ -288,17 +294,14 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
         let config = match config.build(root).map_err(|e| format!("{}", e)) {
             Ok(config) => config,
             Err(e) => {
-                result = Err(e);
-                return;
+                return Err(e);
             }
         };
 
-        result = log4rs::init_config(config)
+        log4rs::init_config(config)
             .map_err(|e| format!("{}", e))
             .map(|_| ())
-    });
-
-    result
+    })
 }
 
 /// Initialises the `env_logger` for output to a web socket and optionally to the console
@@ -310,14 +313,11 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
                                           show_thread_name_in_console: bool,
                                           log_to_console: bool)
                                           -> Result<(), String> {
-    let mut result = Err("Logger already initialised".to_owned());
-
-    INITIALISE_LOGGER.call_once(|| {
+    init_once_guard(|| {
         let (default_level, loggers) = match parse_loggers_from_env() {
             Ok((level, loggers)) => (level, loggers),
             Err(error) => {
-                result = Err(format!("{}", error));
-                return;
+                return Err(format!("{}", error));
             }
         };
 
@@ -337,8 +337,7 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
                   .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
             Err(e) => {
-                result = Err(e);
-                return;
+                return Err(e);
             }
         };
         let server_appender =
@@ -359,16 +358,13 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
         let config = match config.build(root).map_err(|e| format!("{}", e)) {
             Ok(config) => config,
             Err(e) => {
-                result = Err(e);
-                return;
+                return Err(e);
             }
         };
-        result = log4rs::init_config(config)
+        log4rs::init_config(config)
             .map_err(|e| format!("{}", e))
-            .map(|_| ());
-    });
-
-    result
+            .map(|_| ())
+    })
 }
 
 fn make_pattern(show_thread_name: bool) -> PatternEncoder {
@@ -443,13 +439,21 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
     Ok((default_level, loggers))
 }
 
+fn init_once_guard<F: FnOnce() -> Result<(), String>>(init_fn: F) -> Result<(), String> {
+    let mut result = Err("Logger already initialised".to_owned());
+    INITIALISE_LOGGER.call_once(|| { result = init_fn(); });
+    result
+}
+
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use super::parse_loggers;
+    use config_file_handler::current_bin_dir;
     use logger::LogLevelFilter;
-
+    use std::env;
+    use std::fs::{self, File};
+    use std::io::Read;
     use std::net::TcpListener;
     use std::str;
     use std::sync::mpsc::{self, Sender};
@@ -457,6 +461,35 @@ mod tests {
     use std::time::Duration;
     use ws;
     use ws::{Handler, Message};
+
+    // This test passes in isolation but due to static nature of INITIALISE_LOGGER, if
+    // server_logging test runs first then this test will fail with "Logger already initialised"
+    // message.
+    //
+    // NOTE:
+    // Do not change the name of this function without changing it in the CI scripts.
+    #[test]
+    #[ignore]
+    fn override_log_path() {
+        const LOG_FILE: &'static str = "secret-log-file-name.log";
+
+        setup_log_config();
+        unwrap!(init_impl(false, Some(LOG_FILE.to_owned())));
+
+        error!("SECRET-MESSAGE");
+
+        // Wait for async file writer
+        thread::sleep(Duration::from_millis(500));
+
+        let mut log_file_path = unwrap!(current_bin_dir());
+        log_file_path.push(LOG_FILE);
+
+        let mut file = unwrap!(File::open(log_file_path));
+        let mut contents = String::new();
+        let _ = unwrap!(file.read_to_string(&mut contents));
+
+        assert!(contents.contains("SECRET-MESSAGE"));
+    }
 
     #[test]
     fn test_parse_loggers() {
@@ -581,9 +614,14 @@ mod tests {
         error!("This is message 2");
     }
 
-    // TODO(Spandan) This test passes in isolation but due to static nature of INITIALISE_LOGGER, if
+    // This test passes in isolation but due to static nature of INITIALISE_LOGGER, if
     // server_logging test runs first then this test will fail with "Logger already initialised"
-    // message. Presently ignoring.
+    // message.
+    //
+    // NOTE:
+    // Do not change the name of this function without changing it in the CI scripts.
+    //
+    // FIXME: broken test
     #[test]
     #[ignore]
     fn web_socket_logging() {
@@ -637,6 +675,20 @@ mod tests {
         debug!("This message should not be found by default log level");
         error!("This is message 2");
 
-        unwrap!(rx.recv());
+        unwrap!(rx.recv_timeout(Duration::from_secs(10)));
+    }
+
+    fn setup_log_config() {
+        let mut current_dir = unwrap!(env::current_dir());
+        let mut current_bin_dir = unwrap!(current_bin_dir());
+
+        if current_dir.as_path() != current_bin_dir.as_path() {
+            // Try to copy log.toml from the current dir to bin dir
+            // so that the config_file_handler can find it
+            current_dir.push("sample_log_file/log.toml");
+            current_bin_dir.push("log.toml");
+
+            let _ = unwrap!(fs::copy(current_dir, current_bin_dir));
+        }
     }
 }
