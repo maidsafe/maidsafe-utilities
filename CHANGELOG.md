@@ -1,5 +1,10 @@
 # MaidSafe Utilities - Change Log
 
+## [0.13.0]
+- Change `serialise` to return error if not all input bytes are consumed.
+- Refactor the log module.
+- Add an option to override a log output file name.
+
 ## [0.12.1]
 - Fix to make log4rs use the toml format for our log.toml file.
 
