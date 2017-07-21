@@ -212,19 +212,22 @@ impl Deserialize for AsyncConsoleAppenderCreator {
     type Trait = Append;
     type Config = Value;
 
-    fn deserialize(&self,
-                   config: Value,
-                   _deserializers: &Deserializers)
-                   -> Result<Box<Append>, Box<Error + Sync + Send>> {
+    fn deserialize(
+        &self,
+        config: Value,
+        _deserializers: &Deserializers,
+    ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
         let mut map = match config {
             Value::Map(map) => map,
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
         };
 
         let pattern = parse_pattern(&mut map, false)?;
-        Ok(Box::new(AsyncConsoleAppender::builder()
-                        .encoder(Box::new(pattern))
-                        .build()))
+        Ok(Box::new(
+            AsyncConsoleAppender::builder()
+                .encoder(Box::new(pattern))
+                .build(),
+        ))
     }
 }
 
@@ -235,10 +238,11 @@ impl Deserialize for AsyncFileAppenderCreator {
     type Trait = Append;
     type Config = Value;
 
-    fn deserialize(&self,
-                   config: Value,
-                   _deserializers: &Deserializers)
-                   -> Result<Box<Append>, Box<Error + Sync + Send>> {
+    fn deserialize(
+        &self,
+        config: Value,
+        _deserializers: &Deserializers,
+    ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
         use std::time::UNIX_EPOCH;
 
         let mut map = match config {
@@ -252,11 +256,14 @@ impl Deserialize for AsyncFileAppenderCreator {
             match map.remove(&Value::String("output_file_name".to_owned())) {
                 Some(Value::String(op_file)) => op_file,
                 Some(_) => {
-                    return Err(Box::new(ConfigError("`output_file_name` must be a string"
-                                                        .to_owned())))
+                    return Err(Box::new(ConfigError(
+                        "`output_file_name` must be a string".to_owned(),
+                    )))
                 }
                 None => {
-                    return Err(Box::new(ConfigError("`output_file_name` is required".to_owned())))
+                    return Err(Box::new(
+                        ConfigError("`output_file_name` is required".to_owned()),
+                    ))
                 }
             }
         };
@@ -264,7 +271,9 @@ impl Deserialize for AsyncFileAppenderCreator {
         let timestamp = match map.remove(&Value::String("file_timestamp".to_owned())) {
             Some(Value::Bool(t)) => t,
             Some(_) => {
-                return Err(Box::new(ConfigError("`file_timestamp` must be a boolean".to_owned())))
+                return Err(Box::new(
+                    ConfigError("`file_timestamp` must be a boolean".to_owned()),
+                ))
             }
             None => false,
         };
@@ -275,24 +284,22 @@ impl Deserialize for AsyncFileAppenderCreator {
             path.file_stem()
                 .and_then(|s| s.to_str())
                 .and_then(|stem| {
-                              UNIX_EPOCH
-                                  .elapsed()
-                                  .map_err(|e| println!("Could not get timestamp: {:?}", e))
-                                  .ok()
-                                  .map(|dur| (dur, stem))
-                          })
+                    UNIX_EPOCH
+                        .elapsed()
+                        .map_err(|e| println!("Could not get timestamp: {:?}", e))
+                        .ok()
+                        .map(|dur| (dur, stem))
+                })
                 .and_then(|elt| {
-                              path.extension()
-                                  .and_then(|ex| ex.to_str())
-                                  .map(|ex| (elt, ex))
-                          })
-                .map_or_else(|| println!("Could not set timestamped file!"),
-                             |((dur, stem), ext)| {
-                                 path_owned.set_file_name(format!("{}-{}.{}",
-                                                                  stem,
-                                                                  dur.as_secs(),
-                                                                  ext))
-                             });
+                    path.extension().and_then(|ex| ex.to_str()).map(
+                        |ex| (elt, ex),
+                    )
+                })
+                .map_or_else(|| println!("Could not set timestamped file!"), |((dur,
+                   stem),
+                  ext)| {
+                    path_owned.set_file_name(format!("{}-{}.{}", stem, dur.as_secs(), ext))
+                });
 
             path_owned
                 .file_name()
@@ -304,9 +311,11 @@ impl Deserialize for AsyncFileAppenderCreator {
         let op_path = match FileHandler::<()>::new(&op_file, true) {
             Ok(fh) => fh.path().to_path_buf(),
             Err(e) => {
-                return Err(Box::new(ConfigError(format!("Could not establish log file path: \
+                return Err(Box::new(ConfigError(format!(
+                    "Could not establish log file path: \
                                                          {:?}",
-                                                        e))))
+                    e
+                ))))
             }
         };
 
@@ -333,10 +342,11 @@ impl Deserialize for AsyncServerAppenderCreator {
     type Trait = Append;
     type Config = Value;
 
-    fn deserialize(&self,
-                   config: Value,
-                   _deserializers: &Deserializers)
-                   -> Result<Box<Append>, Box<Error + Sync + Send>> {
+    fn deserialize(
+        &self,
+        config: Value,
+        _deserializers: &Deserializers,
+    ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
         let mut map = match config {
             Value::Map(map) => map,
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
@@ -345,21 +355,31 @@ impl Deserialize for AsyncServerAppenderCreator {
         let server_addr = match map.remove(&Value::String("server_addr".to_owned())) {
             Some(Value::String(addr)) => SocketAddr::from_str(&addr[..])?,
             Some(_) => {
-                return Err(Box::new(ConfigError("`server_addr` must be a string".to_owned())))
+                return Err(Box::new(
+                    ConfigError("`server_addr` must be a string".to_owned()),
+                ))
             }
-            None => return Err(Box::new(ConfigError("`server_addr` is required".to_owned()))),
+            None => {
+                return Err(Box::new(
+                    ConfigError("`server_addr` is required".to_owned()),
+                ))
+            }
         };
         let no_delay = match map.remove(&Value::String("no_delay".to_owned())) {
             Some(Value::Bool(no_delay)) => no_delay,
-            Some(_) => return Err(Box::new(ConfigError("`no_delay` must be a boolean".to_owned()))),
+            Some(_) => {
+                return Err(Box::new(
+                    ConfigError("`no_delay` must be a boolean".to_owned()),
+                ))
+            }
             None => true,
         };
         let pattern = parse_pattern(&mut map, false)?;
 
         Ok(Box::new(AsyncServerAppender::builder(server_addr)
-                        .encoder(Box::new(pattern))
-                        .no_delay(no_delay)
-                        .build()?))
+            .encoder(Box::new(pattern))
+            .no_delay(no_delay)
+            .build()?))
     }
 }
 
@@ -369,10 +389,11 @@ impl Deserialize for AsyncWebSockAppenderCreator {
     type Trait = Append;
     type Config = Value;
 
-    fn deserialize(&self,
-                   config: Value,
-                   _deserializers: &Deserializers)
-                   -> Result<Box<Append>, Box<Error + Sync + Send>> {
+    fn deserialize(
+        &self,
+        config: Value,
+        _deserializers: &Deserializers,
+    ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
         let mut map = match config {
             Value::Map(map) => map,
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
@@ -381,26 +402,31 @@ impl Deserialize for AsyncWebSockAppenderCreator {
         let server_url = match map.remove(&Value::String("server_url".to_owned())) {
             Some(Value::String(url)) => url,
             Some(_) => {
-                return Err(Box::new(ConfigError("`server_url` must be a string".to_owned())))
+                return Err(Box::new(
+                    ConfigError("`server_url` must be a string".to_owned()),
+                ))
             }
             None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
         };
 
         let pattern = parse_pattern(&mut map, true)?;
         Ok(Box::new(AsyncWebSockAppender::builder(server_url)
-                        .encoder(Box::new(pattern))
-                        .build()?))
+            .encoder(Box::new(pattern))
+            .build()?))
     }
 }
 
-fn parse_pattern(map: &mut BTreeMap<Value, Value>,
-                 is_websocket: bool)
-                 -> Result<PatternEncoder, Box<Error + Sync + Send>> {
+fn parse_pattern(
+    map: &mut BTreeMap<Value, Value>,
+    is_websocket: bool,
+) -> Result<PatternEncoder, Box<Error + Sync + Send>> {
     use rand;
 
     match map.remove(&Value::String("pattern".to_owned())) {
         Some(Value::String(pattern)) => Ok(PatternEncoder::new(&pattern)),
-        Some(_) => Err(Box::new(ConfigError("`pattern` must be a string".to_owned()))),
+        Some(_) => Err(Box::new(
+            ConfigError("`pattern` must be a string".to_owned()),
+        )),
         None => {
             if is_websocket {
                 Ok(make_json_pattern(rand::random()))
@@ -412,10 +438,12 @@ fn parse_pattern(map: &mut BTreeMap<Value, Value>,
 }
 
 pub fn make_json_pattern(unique_id: u64) -> PatternEncoder {
-    let pattern = format!("{{{{\"id\":\"{}\",\"level\":\"{{l}}\",\"time\":\"{{d}}\",\"thread\":\
+    let pattern = format!(
+        "{{{{\"id\":\"{}\",\"level\":\"{{l}}\",\"time\":\"{{d}}\",\"thread\":\
                            \"{{T}}\",\"module\":\"{{M}}\",\"file\":\"{{f}}\",\"line\":\"{{L}}\",\
                            \"msg\":\"{{m}}\"}}}}",
-                          unique_id);
+        unique_id
+    );
 
     PatternEncoder::new(&pattern)
 }
@@ -485,8 +513,7 @@ impl AsyncAppender {
 impl Append for AsyncAppender {
     fn append(&self, record: &LogRecord) -> Result<(), Box<Error + Sync + Send>> {
         let mut msg = Vec::new();
-        self.encoder
-            .encode(&mut SimpleWriter(&mut msg), record)?;
+        self.encoder.encode(&mut SimpleWriter(&mut msg), record)?;
         unwrap!(self.tx.lock()).send(AsyncEvent::Log(msg))?;
         Ok(())
     }

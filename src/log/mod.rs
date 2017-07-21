@@ -120,24 +120,32 @@ pub fn init(show_thread_name: bool) -> Result<(), String> {
 /// an output file name that will override the log configuration.
 ///
 /// For further details, see the [module docs](index.html).
-pub fn init_with_output_file<S>(show_thread_name: bool,
-                                output_file_name_override: S)
-                                -> Result<(), String>
-    where S: Into<String>
+pub fn init_with_output_file<S>(
+    show_thread_name: bool,
+    output_file_name_override: S,
+) -> Result<(), String>
+where
+    S: Into<String>,
 {
-    init_once_guard(|| init_impl(show_thread_name, Some(output_file_name_override.into())))
+    init_once_guard(|| {
+        init_impl(show_thread_name, Some(output_file_name_override.into()))
+    })
 }
 
 fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> Result<(), String> {
-    let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false)
-        .ok()
-        .and_then(|fh| Some(fh.path().to_path_buf()));
+    let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false).ok().and_then(
+        |fh| {
+            Some(fh.path().to_path_buf())
+        },
+    );
 
     if let Some(config_path) = log_config_path {
         let mut deserializers = Deserializers::default();
         deserializers.insert(From::from("async_console"), AsyncConsoleAppenderCreator);
-        deserializers.insert(From::from("async_file"),
-                             AsyncFileAppenderCreator(op_file_name_override));
+        deserializers.insert(
+            From::from("async_file"),
+            AsyncFileAppenderCreator(op_file_name_override),
+        );
         deserializers.insert(From::from("async_server"), AsyncServerAppenderCreator);
         deserializers.insert(From::from("async_web_socket"), AsyncWebSockAppenderCreator);
 
@@ -149,17 +157,19 @@ fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> R
         let console_appender =
             Appender::builder().build("async_console".to_owned(), Box::new(console_appender));
 
-        let (default_level, loggers) = unwrap!(parse_loggers_from_env(),
-                                               "failed to parse RUST_LOG env variable");
+        let (default_level, loggers) = unwrap!(
+            parse_loggers_from_env(),
+            "failed to parse RUST_LOG env variable"
+        );
 
-        let root = Root::builder()
-            .appender("async_console".to_owned())
-            .build(default_level);
+        let root = Root::builder().appender("async_console".to_owned()).build(
+            default_level,
+        );
         let config = match Config::builder()
-                  .appender(console_appender)
-                  .loggers(loggers)
-                  .build(root)
-                  .map_err(|e| format!("{}", e)) {
+            .appender(console_appender)
+            .loggers(loggers)
+            .build(root)
+            .map_err(|e| format!("{}", e)) {
             Ok(config) => config,
             Err(e) => {
                 return Err(e);
@@ -175,10 +185,11 @@ fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> R
 /// Initialises the `env_logger` for output to a file and optionally to the console asynchronously.
 ///
 /// For further details, see the [module docs](index.html).
-pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
-                                    file_path: P,
-                                    log_to_console: bool)
-                                    -> Result<(), String> {
+pub fn init_to_file<P: AsRef<Path>>(
+    show_thread_name: bool,
+    file_path: P,
+    log_to_console: bool,
+) -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
 
     INITIALISE_LOGGER.call_once(|| {
@@ -244,10 +255,11 @@ pub fn init_to_file<P: AsRef<Path>>(show_thread_name: bool,
 /// asynchronously.
 ///
 /// For further details, see the [module docs](index.html).
-pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
-                                        show_thread_name: bool,
-                                        log_to_console: bool)
-                                        -> Result<(), String> {
+pub fn init_to_server<A: ToSocketAddrs>(
+    server_addr: A,
+    show_thread_name: bool,
+    log_to_console: bool,
+) -> Result<(), String> {
     init_once_guard(|| {
         let (default_level, loggers) = match parse_loggers_from_env() {
             Ok((level, loggers)) => (level, loggers),
@@ -267,9 +279,9 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
         let mut config = Config::builder().loggers(loggers);
 
         let server_appender = match AsyncServerAppender::builder(server_addr)
-                  .encoder(Box::new(make_pattern(show_thread_name)))
-                  .build()
-                  .map_err(|e| format!("{}", e)) {
+            .encoder(Box::new(make_pattern(show_thread_name)))
+            .build()
+            .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
             Err(e) => {
                 return Err(e);
@@ -309,10 +321,11 @@ pub fn init_to_server<A: ToSocketAddrs>(server_addr: A,
 /// filters should be present in web-servers to manipulate the output/view.
 ///
 /// For further details, see the [module docs](index.html).
-pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
-                                          show_thread_name_in_console: bool,
-                                          log_to_console: bool)
-                                          -> Result<(), String> {
+pub fn init_to_web_socket<U: Borrow<str>>(
+    server_url: U,
+    show_thread_name_in_console: bool,
+    log_to_console: bool,
+) -> Result<(), String> {
     init_once_guard(|| {
         let (default_level, loggers) = match parse_loggers_from_env() {
             Ok((level, loggers)) => (level, loggers),
@@ -332,9 +345,9 @@ pub fn init_to_web_socket<U: Borrow<str>>(server_url: U,
         let mut config = Config::builder().loggers(loggers);
 
         let server_appender = match AsyncWebSockAppender::builder(server_url)
-                  .encoder(Box::new(async_log::make_json_pattern(rand::random())))
-                  .build()
-                  .map_err(|e| format!("{}", e)) {
+            .encoder(Box::new(async_log::make_json_pattern(rand::random())))
+            .build()
+            .map_err(|e| format!("{}", e)) {
             Ok(appender) => appender,
             Err(e) => {
                 return Err(e);
@@ -407,10 +420,7 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
     let mut grouped_modules = VecDeque::new();
     let mut default_level = DEFAULT_LOG_LEVEL_FILTER;
 
-    for sub_input in input
-            .split(',')
-            .map(str::trim)
-            .filter(|d| !d.is_empty()) {
+    for sub_input in input.split(',').map(str::trim).filter(|d| !d.is_empty()) {
         let mut parts = sub_input.trim().split('=');
         match (parts.next(), parts.next()) {
             (Some(module_name), Some(level)) => {
@@ -418,7 +428,10 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
                 while let Some(module) = grouped_modules.pop_front() {
                     loggers.push(Logger::builder().build(module, level_filter));
                 }
-                loggers.push(Logger::builder().build(module_name.to_owned(), level_filter));
+                loggers.push(Logger::builder().build(
+                    module_name.to_owned(),
+                    level_filter,
+                ));
             }
             (Some(module), None) => {
                 if let Ok(level_filter) = module.parse::<LogLevelFilter>() {
@@ -579,8 +592,9 @@ mod tests {
 
                 while read_buf.len() - search_frm_index >= MSG_TERMINATOR.len() {
                     if read_buf[search_frm_index..].starts_with(&MSG_TERMINATOR) {
-                        log_msgs.push(unwrap!(str::from_utf8(&read_buf[..search_frm_index]))
-                                          .to_owned());
+                        log_msgs.push(
+                            unwrap!(str::from_utf8(&read_buf[..search_frm_index])).to_owned(),
+                        );
                         read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
                         search_frm_index = 0;
                     } else {
@@ -639,7 +653,9 @@ mod tests {
             impl Handler for Server {
                 fn on_message(&mut self, msg: Message) -> ws::Result<()> {
                     let text = unwrap!(msg.as_text());
-                    assert!(text.contains(&format!("This is message {}", self.count)[..]));
+                    assert!(text.contains(
+                        &format!("This is message {}", self.count)[..],
+                    ));
                     self.count += 1;
                     if self.count == MSG_COUNT {
                         unwrap!(self.tx.send(()));

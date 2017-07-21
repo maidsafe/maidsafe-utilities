@@ -125,10 +125,11 @@ pub struct EventSender<Category, EventSubset> {
 impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category, EventSubset> {
     /// Create a new instance of `EventSender`. Category type, category value and EventSubset type
     /// are baked into `EventSender` to disallow user code from misusing it.
-    pub fn new(event_tx: mpsc::Sender<EventSubset>,
-               event_category: Category,
-               event_category_tx: mpsc::Sender<Category>)
-               -> EventSender<Category, EventSubset> {
+    pub fn new(
+        event_tx: mpsc::Sender<EventSubset>,
+        event_category: Category,
+        event_category_tx: mpsc::Sender<Category>,
+    ) -> EventSender<Category, EventSubset> {
         EventSender {
             event_tx: event_tx,
             event_category: event_category,
@@ -210,46 +211,46 @@ mod tests {
         let (category_tx, category_rx) = mpsc::channel();
         let (network_event_tx, network_event_rx) = mpsc::channel();
 
-        let ui_event_sender = UiEventSender::new(ui_event_tx,
-                                                 EventCategory::UserInterface,
-                                                 category_tx.clone());
+        let ui_event_sender = UiEventSender::new(
+            ui_event_tx,
+            EventCategory::UserInterface,
+            category_tx.clone(),
+        );
 
         let nw_event_sender =
             NetworkEventSender::new(network_event_tx, EventCategory::Network, category_tx);
 
-        let _joiner =
-            ::thread::named("EventListenerThread",
-                            move || for it in category_rx.iter() {
-                                match it {
-                                    EventCategory::Network => {
-                                        if let Ok(network_event) = network_event_rx.try_recv() {
-                                            if let NetworkEvent::Connected(token) = network_event {
-                                                assert_eq!(token, TOKEN)
-                                            } else {
-                                                panic!("Shouldn't have received this event: {:?}",
-                                                       network_event)
-                                            }
-                                        }
-                                    }
-                                    EventCategory::UserInterface => {
-                                        if let Ok(ui_event) = ui_event_rx.try_recv() {
-                                            match ui_event {
-                                                UiEvent::CreateDirectory(name) => {
-                                                    assert_eq!(name, DIR_NAME)
-                                                }
-                                                UiEvent::Terminate => break,
-                                            }
-                                        }
-                                    }
-                                }
-                            });
+        let _joiner = ::thread::named(
+            "EventListenerThread",
+            move || for it in category_rx.iter() {
+                match it {
+                    EventCategory::Network => {
+                        if let Ok(network_event) = network_event_rx.try_recv() {
+                            if let NetworkEvent::Connected(token) = network_event {
+                                assert_eq!(token, TOKEN)
+                            } else {
+                                panic!("Shouldn't have received this event: {:?}", network_event)
+                            }
+                        }
+                    }
+                    EventCategory::UserInterface => {
+                        if let Ok(ui_event) = ui_event_rx.try_recv() {
+                            match ui_event {
+                                UiEvent::CreateDirectory(name) => assert_eq!(name, DIR_NAME),
+                                UiEvent::Terminate => break,
+                            }
+                        }
+                    }
+                }
+            },
+        );
 
-        assert!(nw_event_sender
-                    .send(NetworkEvent::Connected(TOKEN))
-                    .is_ok());
-        assert!(ui_event_sender
-                    .send(UiEvent::CreateDirectory(DIR_NAME.to_string()))
-                    .is_ok());
+        assert!(nw_event_sender.send(NetworkEvent::Connected(TOKEN)).is_ok());
+        assert!(
+            ui_event_sender
+                .send(UiEvent::CreateDirectory(DIR_NAME.to_string()))
+                .is_ok()
+        );
         assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 
         ::std::thread::sleep(::std::time::Duration::from_millis(500));
