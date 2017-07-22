@@ -488,8 +488,8 @@ impl AsyncAppender {
                         if let Ok(mut str_msg) = String::from_utf8(msg) {
                             let str_msg_cloned = str_msg.clone();
                             if let Some(file_name_capture) = re.captures(&str_msg_cloned) {
-                                if let Some(file_name) = file_name_capture.at(1) {
-                                    str_msg = re.replace(&str_msg[..], file_name);
+                                if let Some(file_name) = file_name_capture.get(1) {
+                                    str_msg = re.replace(&str_msg[..], file_name.as_str()).into();
                                 }
                             }
 
