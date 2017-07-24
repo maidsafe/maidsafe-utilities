@@ -47,10 +47,12 @@ impl SeededRng {
         let seed = if let Some(current_seed) = *optional_seed {
             current_seed
         } else {
-            let new_seed = [rand::random(),
-                            rand::random(),
-                            rand::random(),
-                            rand::random()];
+            let new_seed = [
+                rand::random(),
+                rand::random(),
+                rand::random(),
+                rand::random(),
+            ];
             *optional_seed = Some(new_seed);
             new_seed
         };
@@ -65,11 +67,13 @@ impl SeededRng {
         let optional_seed = &mut *unwrap!(SEED.lock());
         if let Some(current_seed) = *optional_seed {
             if current_seed != seed {
-                panic!("\nThe static seed has already been initialised to a different value via \
+                panic!(
+                    "\nThe static seed has already been initialised to a different value via \
                         a call to `SeededRng::new()`\nor `SeededRng::from_seed(...)`.  This \
                         could be due to setting a hard-coded value for the seed in a\nsingle \
                         test case, but running the whole test suite.  If so, try running just \
-                        the single test case.\n");
+                        the single test case.\n"
+                );
             }
         } else {
             *optional_seed = Some(seed);
@@ -82,21 +86,23 @@ impl SeededRng {
     /// the global seed.
     pub fn thread_rng() -> SeededRng {
         THREAD_RNG.with(|optional_rng_cell| {
-                            let mut optional_rng = optional_rng_cell.borrow_mut();
-                            let mut rng = optional_rng.take().unwrap_or_else(SeededRng::new);
-                            let new_rng = rng.new_rng();
-                            *optional_rng = Some(rng);
-                            new_rng
-                        })
+            let mut optional_rng = optional_rng_cell.borrow_mut();
+            let mut rng = optional_rng.take().unwrap_or_else(SeededRng::new);
+            let new_rng = rng.new_rng();
+            *optional_rng = Some(rng);
+            new_rng
+        })
     }
 
     /// Construct a new `SeededRng`
     /// using a seed generated from random data provided by `self`.
     pub fn new_rng(&mut self) -> SeededRng {
-        let new_seed = [self.0.next_u32().wrapping_add(self.0.next_u32()),
-                        self.0.next_u32().wrapping_add(self.0.next_u32()),
-                        self.0.next_u32().wrapping_add(self.0.next_u32()),
-                        self.0.next_u32().wrapping_add(self.0.next_u32())];
+        let new_seed = [
+            self.0.next_u32().wrapping_add(self.0.next_u32()),
+            self.0.next_u32().wrapping_add(self.0.next_u32()),
+            self.0.next_u32().wrapping_add(self.0.next_u32()),
+            self.0.next_u32().wrapping_add(self.0.next_u32()),
+        ];
         SeededRng(XorShiftRng::from_seed(new_seed))
     }
 }
@@ -109,9 +115,11 @@ impl Default for SeededRng {
 
 impl Display for SeededRng {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter,
-               "RNG seed: {:?}",
-               *SEED.lock().unwrap_or_else(|e| e.into_inner()))
+        write!(
+            formatter,
+            "RNG seed: {:?}",
+            *SEED.lock().unwrap_or_else(|e| e.into_inner())
+        )
     }
 }
 
@@ -211,11 +219,13 @@ mod tests {
 
         for _ in 0..2 {
             let j = thread::spawn(move || {
-                                      let _rng = SeededRng::new();
-                                      panic!("This is an induced panic to test if \
+                let _rng = SeededRng::new();
+                panic!(
+                    "This is an induced panic to test if \
                                              `ALREADY_PRINTED` global is toggled only once on \
-                                             panic");
-                                  });
+                                             panic"
+                );
+            });
 
             assert!(j.join().is_err());
             assert!(ALREADY_PRINTED.load(Ordering::Relaxed));

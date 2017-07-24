@@ -44,9 +44,9 @@ impl WebSocket {
                 fn on_open(&mut self, _: Handshake) -> ws::Result<()> {
                     if self.tx.send(Ok(self.ws_tx.clone())).is_err() {
                         Err(ws::Error {
-                                kind: ws::ErrorKind::Internal,
-                                details: From::from("Channel error - Could not send ws_tx."),
-                            })
+                            kind: ws::ErrorKind::Internal,
+                            details: From::from("Channel error - Could not send ws_tx."),
+                        })
                     } else {
                         Ok(())
                     }
@@ -71,19 +71,24 @@ impl WebSocket {
         match rx.recv() {
             Ok(Ok(ws_tx)) => {
                 Ok(WebSocket {
-                       ws_tx: ws_tx,
-                       _raii_joiner: joiner,
-                   })
+                    ws_tx: ws_tx,
+                    _raii_joiner: joiner,
+                })
             }
             Ok(Err(e)) => Err(e),
-            Err(e) => Err(Error::new(ErrorKind::Other, format!("WebSocket Logger Error: {:?}", e))),
+            Err(e) => Err(Error::new(
+                ErrorKind::Other,
+                format!("WebSocket Logger Error: {:?}", e),
+            )),
         }
     }
 
     pub fn write_all(&self, buf: &[u8]) -> Result<()> {
-        self.ws_tx
-            .send(Message::Binary(buf.to_owned()))
-            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+        self.ws_tx.send(Message::Binary(buf.to_owned())).map_err(
+            |e| {
+                Error::new(ErrorKind::Other, format!("{:?}", e))
+            },
+        )
     }
 }
 

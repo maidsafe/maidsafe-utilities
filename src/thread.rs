@@ -71,8 +71,9 @@ impl Drop for Joiner {
 /// });
 /// ```
 pub fn named<S, F>(thread_name: S, func: F) -> Joiner
-    where S: Into<String>,
-          F: FnOnce() + Send + 'static
+where
+    S: Into<String>,
+    F: FnOnce() + Send + 'static,
 {
     let thread_name: String = thread_name.into();
     let join_handle_res = std::thread::Builder::new().name(thread_name).spawn(func);
@@ -94,9 +95,9 @@ mod tests {
         {
             let time_before = Instant::now();
             {
-                named("JoinerTestDaemon",
-                      move || { thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON)); })
-                        .detach();
+                named("JoinerTestDaemon", move || {
+                    thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
+                }).detach();
             }
             let diff = time_before.elapsed();
 
