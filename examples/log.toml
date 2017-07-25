@@ -4,6 +4,7 @@
 kind = "async_web_socket"
 server_url = "ws://127.0.0.1:55555" # Make sure to either spawn a web server at this address or
                                     # change this URL.
+session_id = "magic-value"
 
 [appenders.display]
 kind = "console"

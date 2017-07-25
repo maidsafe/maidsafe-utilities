@@ -91,6 +91,7 @@ mod web_socket;
 use self::async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
                       AsyncFileAppenderCreator, AsyncServerAppender, AsyncServerAppenderCreator,
                       AsyncWebSockAppender, AsyncWebSockAppenderCreator};
+
 use config_file_handler::FileHandler;
 use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
@@ -165,16 +166,11 @@ fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> R
         let root = Root::builder().appender("async_console".to_owned()).build(
             default_level,
         );
-        let config = match Config::builder()
+        let config = Config::builder()
             .appender(console_appender)
             .loggers(loggers)
             .build(root)
-            .map_err(|e| format!("{}", e)) {
-            Ok(config) => config,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+            .map_err(|e| format!("{}", e))?;
 
         log4rs::init_config(config)
             .map_err(|e| format!("{}", e))
@@ -278,15 +274,10 @@ pub fn init_to_server<A: ToSocketAddrs>(
 
         let mut config = Config::builder().loggers(loggers);
 
-        let server_appender = match AsyncServerAppender::builder(server_addr)
+        let server_appender = AsyncServerAppender::builder(server_addr)
             .encoder(Box::new(make_pattern(show_thread_name)))
             .build()
-            .map_err(|e| format!("{}", e)) {
-            Ok(appender) => appender,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+            .map_err(|e| format!("{}", e))?;
 
         let server_appender =
             Appender::builder().build("server".to_owned(), Box::new(server_appender));
@@ -303,12 +294,7 @@ pub fn init_to_server<A: ToSocketAddrs>(
             config = config.appender(console_appender);
         }
 
-        let config = match config.build(root).map_err(|e| format!("{}", e)) {
-            Ok(config) => config,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let config = config.build(root).map_err(|e| format!("{}", e))?;
 
         log4rs::init_config(config)
             .map_err(|e| format!("{}", e))
@@ -323,6 +309,7 @@ pub fn init_to_server<A: ToSocketAddrs>(
 /// For further details, see the [module docs](index.html).
 pub fn init_to_web_socket<U: Borrow<str>>(
     server_url: U,
+    session_id: Option<String>,
     show_thread_name_in_console: bool,
     log_to_console: bool,
 ) -> Result<(), String> {
@@ -344,15 +331,12 @@ pub fn init_to_web_socket<U: Borrow<str>>(
 
         let mut config = Config::builder().loggers(loggers);
 
-        let server_appender = match AsyncWebSockAppender::builder(server_url)
+        let server_appender = AsyncWebSockAppender::builder(server_url)
             .encoder(Box::new(async_log::make_json_pattern(rand::random())))
+            .session_id(session_id)
             .build()
-            .map_err(|e| format!("{}", e)) {
-            Ok(appender) => appender,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+            .map_err(|e| format!("{}", e))?;
+
         let server_appender =
             Appender::builder().build("server".to_owned(), Box::new(server_appender));
 
@@ -368,12 +352,7 @@ pub fn init_to_web_socket<U: Borrow<str>>(
             config = config.appender(console_appender);
         }
 
-        let config = match config.build(root).map_err(|e| format!("{}", e)) {
-            Ok(config) => config,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let config = config.build(root).map_err(|e| format!("{}", e))?;
         log4rs::init_config(config)
             .map_err(|e| format!("{}", e))
             .map(|_| ())
@@ -634,23 +613,30 @@ mod tests {
     //
     // NOTE:
     // Do not change the name of this function without changing it in the CI scripts.
-    //
-    // FIXME: broken test
     #[test]
     #[ignore]
     fn web_socket_logging() {
+        use self::web_socket::validate_request;
+        use ws::{Request, Response};
+
         const MSG_COUNT: usize = 3;
+        const MAGIC_VALUE: &str = "magic-value";
 
         let (tx, rx) = mpsc::channel();
 
         // Start Log Message Server
-        let _ = ::thread::named("LogMessageWebServer", move || {
+        let _thread = ::thread::named("LogMessageWebServer", move || {
             struct Server {
                 tx: Sender<()>,
+                ws_tx: ws::Sender,
                 count: usize,
             }
 
             impl Handler for Server {
+                fn on_request(&mut self, req: &Request) -> ws::Result<Response> {
+                    validate_request(req, Some(MAGIC_VALUE))
+                }
+
                 fn on_message(&mut self, msg: Message) -> ws::Result<()> {
                     let text = unwrap!(msg.as_text());
                     assert!(text.contains(
@@ -659,15 +645,17 @@ mod tests {
                     self.count += 1;
                     if self.count == MSG_COUNT {
                         unwrap!(self.tx.send(()));
+                        unwrap!(self.ws_tx.shutdown());
                     }
 
                     Ok(())
                 }
             }
 
-            unwrap!(ws::listen("127.0.0.1:44444", |_| {
+            unwrap!(ws::listen("127.0.0.1:44444", |ws_tx| {
                 Server {
                     tx: tx.clone(),
+                    ws_tx,
                     count: 0,
                 }
             }));
@@ -676,7 +664,12 @@ mod tests {
         // Allow sometime for server to start listening
         thread::sleep(Duration::from_millis(100));
 
-        unwrap!(init_to_web_socket("ws://127.0.0.1:44444", false, false));
+        unwrap!(init_to_web_socket(
+            "ws://127.0.0.1:44444",
+            Some(MAGIC_VALUE.into()),
+            false,
+            false,
+        ));
 
         info!("This message should not be found by default log level");
         warn!("This is message 0");
@@ -692,6 +685,71 @@ mod tests {
         error!("This is message 2");
 
         unwrap!(rx.recv_timeout(Duration::from_secs(10)));
+    }
+
+    // This test passes in isolation but due to static nature of INITIALISE_LOGGER, if
+    // server_logging test runs first then this test will fail with "Logger already initialised"
+    // message.
+    //
+    // NOTE:
+    // Do not change the name of this function without changing it in the CI scripts.
+    #[test]
+    #[ignore]
+    fn web_socket_reconnect() {
+        const MSG_COUNT: usize = 3;
+
+        let (tx, rx) = mpsc::channel();
+
+        // Start logging messages to a non-existant server.
+        unwrap!(init_to_web_socket(
+            "ws://127.0.0.1:44444",
+            None,
+            false,
+            false,
+        ));
+
+        info!("This message should not be found by default log level");
+        warn!("This is message 0");
+        trace!("This message should not be found by default log level");
+        warn!("This is message 1");
+
+        // Start Log Message Server
+        let _thread = ::thread::named("LogMessageWebServer", move || {
+            struct Server {
+                tx: Sender<()>,
+                ws_tx: ws::Sender,
+                count: usize,
+            }
+
+            impl Handler for Server {
+                fn on_message(&mut self, _: Message) -> ws::Result<()> {
+                    self.count += 1;
+                    if self.count == MSG_COUNT {
+                        unwrap!(self.tx.send(()));
+                        unwrap!(self.ws_tx.shutdown());
+                    }
+                    Ok(())
+                }
+            }
+
+            unwrap!(ws::listen("127.0.0.1:44444", |ws_tx| {
+                Server {
+                    tx: tx.clone(),
+                    ws_tx,
+                    count: 0,
+                }
+            }));
+        });
+
+        // Wait for the server to start-up, then send another message.
+        thread::sleep(Duration::from_millis(100));
+
+        // When we send the third message, the logger should auto-reconnect and send all
+        // three messages that it has buffered.
+        debug!("This message should not be found by default log level");
+        error!("This is message 2");
+
+        unwrap!(rx.recv_timeout(Duration::from_secs(2)));
     }
 
     fn setup_log_config() {
