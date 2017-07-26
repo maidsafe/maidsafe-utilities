@@ -182,6 +182,7 @@ impl AsyncWebSockAppender {
     pub fn builder<U: Borrow<str>>(server_url: U) -> AsyncWebSockAppenderBuilder<U> {
         AsyncWebSockAppenderBuilder {
             url: server_url,
+            session_id: None,
             encoder: Box::new(PatternEncoder::default()),
         }
     }
@@ -189,19 +190,23 @@ impl AsyncWebSockAppender {
 
 pub struct AsyncWebSockAppenderBuilder<U> {
     url: U,
+    session_id: Option<String>,
     encoder: Box<Encode>,
 }
 
 impl<U: Borrow<str>> AsyncWebSockAppenderBuilder<U> {
-    pub fn encoder(self, encoder: Box<Encode>) -> Self {
-        AsyncWebSockAppenderBuilder {
-            url: self.url,
-            encoder: encoder,
-        }
+    pub fn encoder(mut self, encoder: Box<Encode>) -> Self {
+        self.encoder = encoder;
+        self
+    }
+
+    pub fn session_id(mut self, session_id: Option<String>) -> Self {
+        self.session_id = session_id;
+        self
     }
 
     pub fn build(self) -> io::Result<AsyncAppender> {
-        let ws = WebSocket::new(self.url)?;
+        let ws = WebSocket::new(self.url, self.session_id);
         Ok(AsyncAppender::new(ws, self.encoder))
     }
 }
@@ -409,9 +414,20 @@ impl Deserialize for AsyncWebSockAppenderCreator {
             None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
         };
 
+        let session_id = match map.remove(&Value::String("session_id".to_owned())) {
+            Some(Value::String(id)) => Some(id),
+            Some(_) => {
+                return Err(Box::new(
+                    ConfigError("`session_id` must be a string".to_owned()),
+                ));
+            }
+            None => None,
+        };
+
         let pattern = parse_pattern(&mut map, true)?;
         Ok(Box::new(AsyncWebSockAppender::builder(server_url)
             .encoder(Box::new(pattern))
+            .session_id(session_id)
             .build()?))
     }
 }

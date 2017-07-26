@@ -57,6 +57,7 @@ extern crate serde;
 extern crate serde_value;
 #[macro_use]
 extern crate unwrap;
+extern crate url;
 extern crate ws;
 
 /// Utilities related to threading.
