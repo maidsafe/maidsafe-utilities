@@ -15,8 +15,8 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use bincode::{Bounded, ErrorKind, Infinite, deserialize_from, serialize, serialize_into,
-              serialized_size, serialized_size_bounded};
+use bincode::{Bounded, ErrorKind, Infinite, deserialize, deserialize_from, serialize,
+              serialize_into, serialized_size, serialized_size_bounded};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::io::{Cursor, Read, Write};
@@ -68,21 +68,28 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
 where
     T: Serialize + DeserializeOwned,
 {
-    let mut cursor = Cursor::new(data);
-    deserialize_from(&mut cursor, Infinite)
-        .map_err(|e| SerialisationError::Deserialise(*e))
-        .and_then(|parsed| check_deserialised_size(data, parsed))
+    let value = deserialize(data).map_err(
+        |e| SerialisationError::Deserialise(*e),
+    )?;
+    if serialized_size(&value) != data.len() as u64 {
+        return Err(SerialisationError::DeserialiseExtraBytes);
+    }
+    Ok(value)
 }
 
 /// Deserialise a `Deserialize` type with max size limit specified.
 pub fn deserialise_with_limit<T>(data: &[u8], size_limit: Bounded) -> Result<T, SerialisationError>
 where
-    T: Serialize + DeserializeOwned,
+    T: DeserializeOwned,
 {
     let mut cursor = Cursor::new(data);
-    deserialize_from(&mut cursor, size_limit)
-        .map_err(|e| SerialisationError::Deserialise(*e))
-        .and_then(|parsed| check_deserialised_size(data, parsed))
+    let value = deserialize_from(&mut cursor, size_limit).map_err(|e| {
+        SerialisationError::Deserialise(*e)
+    })?;
+    if cursor.position() != data.len() as u64 {
+        return Err(SerialisationError::DeserialiseExtraBytes);
+    }
+    Ok(value)
 }
 
 /// Serialise an `Serialize` type directly into a `Write` with no limit on the size of the
@@ -132,23 +139,15 @@ pub fn serialised_size_with_limit<T: Serialize>(data: &T, max: u64) -> Option<u6
     serialized_size_bounded(data, max)
 }
 
-fn check_deserialised_size<T>(serialised: &[u8], deserialised: T) -> Result<T, SerialisationError>
-where
-    T: Serialize + DeserializeOwned,
-{
-    if serialized_size(&deserialised) == serialised.len() as u64 {
-        Ok(deserialised)
-    } else {
-        Err(SerialisationError::DeserialiseExtraBytes)
-    }
-}
-
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use bincode::{Bounded, ErrorKind};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde::de::{self, Visitor};
+    use std::fmt;
     use std::io::Cursor;
 
     #[test]
@@ -165,11 +164,9 @@ mod tests {
 
         // Try to parse a `String` into a `u64` to check the unused bytes triggers an error.
         let serialised_string = unwrap!(serialise(&"Another string".to_string()));
-        if let Err(SerialisationError::DeserialiseExtraBytes) =
-            deserialise::<u64>(&serialised_string)
-        {
-        } else {
-            panic!("Failed to return the right error type.");
+        match deserialise::<u64>(&serialised_string).unwrap_err() {
+            SerialisationError::DeserialiseExtraBytes => (),
+            err => panic!("{:?}", err),
         }
     }
 
@@ -248,5 +245,62 @@ mod tests {
         assert_eq!(serialised_size_with_limit(&data, 100), Some(64));
         assert_eq!(serialised_size_with_limit(&data, 64), Some(64));
         assert!(serialised_size_with_limit(&data, 63).is_none());
+    }
+
+    #[derive(PartialEq, Eq, Debug)]
+    struct Wrapper([u8; 1]);
+
+    impl Serialize for Wrapper {
+        fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            serializer.serialize_bytes(&self.0[..])
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Wrapper {
+        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Wrapper, D::Error> {
+            struct WrapperVisitor;
+            impl<'de> Visitor<'de> for WrapperVisitor {
+                type Value = Wrapper;
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    write!(formatter, "Wrapper")
+                }
+                fn visit_bytes<E: de::Error>(self, value: &[u8]) -> Result<Self::Value, E> {
+                    if value.len() != 1 {
+                        return Err(de::Error::invalid_length(value.len(), &self));
+                    }
+                    Ok(Wrapper([value[0]]))
+                }
+            }
+            deserializer.deserialize_bytes(WrapperVisitor)
+        }
+    }
+
+    #[test]
+    // The bincode implementation of `serialize_bytes` puts the number of bytes of raw data as the
+    // first 8 bytes of the encoded data.  The corresponding `deserialize_bytes` uses these first 8
+    // bytes to deduce the size of the buffer into which the raw bytes should then be copied.  If we
+    // use bincode's `deserialize_from(.., Infinite)` to try and parse such data, size-checking is
+    // disabled when allocating the buffer, and corrupted serialised data could cause an OOM crash.
+    fn deserialize_bytes() {
+        let wrapper = Wrapper([255]);
+        let serialised_wrapper = unwrap!(serialise(&wrapper));
+        // If the following assertion fails, revisit how we're encoding data via `serialize_bytes`
+        // to check that the following `tampered` array below is still trying to trigger an OOM
+        // error.
+        assert_eq!(serialised_wrapper, [1, 0, 0, 0, 0, 0, 0, 0, 255]);
+        let deserialised_wrapper: Wrapper = unwrap!(deserialise(&serialised_wrapper));
+        assert_eq!(wrapper, deserialised_wrapper);
+
+        // Try to trigger an OOM crash.
+        let tampered = [255u8; 9];
+        match deserialise::<Wrapper>(&tampered).unwrap_err() {
+            SerialisationError::Deserialise(_) => (),
+            err => panic!("{:?}", err),
+        }
+
+        match deserialise::<Wrapper>(&[1, 0, 0, 0, 0, 0, 0, 0, 255, 255]).unwrap_err() {
+            SerialisationError::DeserialiseExtraBytes => (),
+            err => panic!("{:?}", err),
+        }
     }
 }
