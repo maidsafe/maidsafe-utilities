@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.15.0]
+- Use rust 1.22.1 stable / 2017-11-23 nightly
+- rustfmt 0.9.0 and clippy-0.0.174
+
 ## [0.14.1]
 - Fix issue when deserialising corrupt data
 - Reconnect web socket logger if it disconnects
