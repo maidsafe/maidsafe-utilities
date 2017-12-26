@@ -187,7 +187,7 @@ mod tests {
         type NetworkEventSender = EventSender<EventCategory, NetworkEvent>;
 
         const TOKEN: u32 = 9876;
-        const DIR_NAME: &'static str = "NewDirectory";
+        const DIR_NAME: &str = "NewDirectory";
 
         #[derive(Clone, Debug)]
         enum EventCategory {

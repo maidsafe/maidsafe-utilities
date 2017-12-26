@@ -17,9 +17,9 @@
 
 //! These functions can initialise logging for output to stdout only, or to a file and stdout.  For
 //! more fine-grained control, create a file called `log.toml` in the root directory of the project,
-//! or in the same directory where the executable is.  See [log4rs docs]
-//! (http://sfackler.github.io/log4rs/doc/v0.3.3/log4rs/index.html) for details about the format and
-//! structure of this file.
+//! or in the same directory where the executable is.  See
+//! [log4rs docs](http://sfackler.github.io/log4rs/doc/v0.3.3/log4rs/index.html) for details about
+//! the format and structure of this file.
 //!
 //! An example of a log message is:
 //!
@@ -107,7 +107,7 @@ use std::path::Path;
 use std::sync::{ONCE_INIT, Once};
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
-static CONFIG_FILE: &'static str = "log.toml";
+static CONFIG_FILE: &str = "log.toml";
 static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 
 /// Initialises the `env_logger` for output to stdout.
@@ -142,13 +142,13 @@ fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> R
 
     if let Some(config_path) = log_config_path {
         let mut deserializers = Deserializers::default();
-        deserializers.insert(From::from("async_console"), AsyncConsoleAppenderCreator);
+        deserializers.insert("async_console", AsyncConsoleAppenderCreator);
         deserializers.insert(
-            From::from("async_file"),
+            "async_file",
             AsyncFileAppenderCreator(op_file_name_override),
         );
-        deserializers.insert(From::from("async_server"), AsyncServerAppenderCreator);
-        deserializers.insert(From::from("async_web_socket"), AsyncWebSockAppenderCreator);
+        deserializers.insert("async_server", AsyncServerAppenderCreator);
+        deserializers.insert("async_web_socket", AsyncWebSockAppenderCreator);
 
         log4rs::init_file(config_path, deserializers).map_err(|e| format!("{}", e))
     } else {
@@ -463,7 +463,7 @@ mod tests {
     #[test]
     #[ignore]
     fn override_log_path() {
-        const LOG_FILE: &'static str = "secret-log-file-name.log";
+        const LOG_FILE: &str = "secret-log-file-name.log";
 
         setup_log_config();
         unwrap!(init_impl(false, Some(LOG_FILE.to_owned())));
