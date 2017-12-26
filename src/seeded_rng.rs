@@ -31,9 +31,10 @@ thread_local! {
     static THREAD_RNG: RefCell<Option<SeededRng>> = RefCell::new(None);
 }
 
-/// A [fast pseudorandom number generator]
-/// (https://doc.rust-lang.org/rand/rand/struct.XorShiftRng.html) for use in tests which allows
-/// seeding and prints the seed when the thread in which it is created panics.
+/// A [fast pseudorandom number
+/// generator](https://doc.rust-lang.org/rand/rand/struct.XorShiftRng.html)
+/// for use in tests which allows seeding and prints the seed when the thread
+/// in which it is created panics.
 pub struct SeededRng(XorShiftRng);
 
 impl SeededRng {
@@ -184,14 +185,14 @@ mod tests {
             let seed = [0, 1, 2, 3];
             let mut seeded_rng1 = SeededRng::from_seed(seed);
             let mut seeded_rng2 = SeededRng::new();
-            let expected = 12884903946;
+            let expected = 12_884_903_946;
             assert_eq!(seeded_rng1.next_u64(), expected);
             assert_eq!(seeded_rng2.next_u64(), expected);
 
             let mut rng1_from_seeded_rng1 = seeded_rng1.new_rng();
             let mut rng2_from_seeded_rng1 = seeded_rng1.new_rng();
-            let expected1 = 36629641468946701;
-            let expected2 = 1225987531410437264;
+            let expected1 = 36_629_641_468_946_701;
+            let expected2 = 1_225_987_531_410_437_264;
             assert_eq!(rng1_from_seeded_rng1.next_u64(), expected1);
             assert_eq!(rng2_from_seeded_rng1.next_u64(), expected2);
 
