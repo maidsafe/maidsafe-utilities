@@ -34,7 +34,7 @@ impl Handler for Server {
 }
 
 fn main() {
-    unwrap!(ws::listen("127.0.0.1:55555", |_| {
-        Server { session_id: Some("magic-value".into()) }
+    unwrap!(ws::listen("127.0.0.1:55555", |_| Server {
+        session_id: Some("magic-value".into())
     }));
 }

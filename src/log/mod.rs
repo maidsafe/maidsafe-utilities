@@ -78,11 +78,11 @@ pub use self::async_log::MSG_TERMINATOR;
 mod async_log;
 mod web_socket;
 
-
-
-use self::async_log::{AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender,
-                      AsyncFileAppenderCreator, AsyncServerAppender, AsyncServerAppenderCreator,
-                      AsyncWebSockAppender, AsyncWebSockAppenderCreator};
+use self::async_log::{
+    AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender, AsyncFileAppenderCreator,
+    AsyncServerAppender, AsyncServerAppenderCreator, AsyncWebSockAppender,
+    AsyncWebSockAppenderCreator,
+};
 
 use config_file_handler::FileHandler;
 use log4rs;
@@ -96,7 +96,7 @@ use std::env;
 use std::fmt::{self, Display, Formatter};
 use std::net::ToSocketAddrs;
 use std::path::Path;
-use std::sync::{ONCE_INIT, Once};
+use std::sync::{Once, ONCE_INIT};
 
 static INITIALISE_LOGGER: Once = ONCE_INIT;
 static CONFIG_FILE: &str = "log.toml";
@@ -120,17 +120,13 @@ pub fn init_with_output_file<S>(
 where
     S: Into<String>,
 {
-    init_once_guard(|| {
-        init_impl(show_thread_name, Some(output_file_name_override.into()))
-    })
+    init_once_guard(|| init_impl(show_thread_name, Some(output_file_name_override.into())))
 }
 
 fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> Result<(), String> {
-    let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false).ok().and_then(
-        |fh| {
-            Some(fh.path().to_path_buf())
-        },
-    );
+    let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false)
+        .ok()
+        .and_then(|fh| Some(fh.path().to_path_buf()));
 
     if let Some(config_path) = log_config_path {
         let mut deserializers = Deserializers::default();
@@ -155,9 +151,9 @@ fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> R
             "failed to parse RUST_LOG env variable"
         );
 
-        let root = Root::builder().appender("async_console".to_owned()).build(
-            default_level,
-        );
+        let root = Root::builder()
+            .appender("async_console".to_owned())
+            .build(default_level);
         let config = Config::builder()
             .appender(console_appender)
             .loggers(loggers)
@@ -399,10 +395,7 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
                 while let Some(module) = grouped_modules.pop_front() {
                     loggers.push(Logger::builder().build(module, level_filter));
                 }
-                loggers.push(Logger::builder().build(
-                    module_name.to_owned(),
-                    level_filter,
-                ));
+                loggers.push(Logger::builder().build(module_name.to_owned(), level_filter));
             }
             (Some(module), None) => {
                 if let Ok(level_filter) = module.parse::<LogLevelFilter>() {
@@ -419,20 +412,21 @@ fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLogg
         loggers.push(Logger::builder().build(module, default_level));
     }
 
-
     Ok((default_level, loggers))
 }
 
 fn init_once_guard<F: FnOnce() -> Result<(), String>>(init_fn: F) -> Result<(), String> {
     let mut result = Err("Logger already initialised".to_owned());
-    INITIALISE_LOGGER.call_once(|| { result = init_fn(); });
+    INITIALISE_LOGGER.call_once(|| {
+        result = init_fn();
+    });
     result
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::parse_loggers;
+    use super::*;
     use config_file_handler::current_bin_dir;
     use logger::LogLevelFilter;
     use std::env;
@@ -631,9 +625,7 @@ mod tests {
 
                 fn on_message(&mut self, msg: Message) -> ws::Result<()> {
                     let text = unwrap!(msg.as_text());
-                    assert!(text.contains(
-                        &format!("This is message {}", self.count)[..],
-                    ));
+                    assert!(text.contains(&format!("This is message {}", self.count)[..]));
                     self.count += 1;
                     if self.count == MSG_COUNT {
                         unwrap!(self.tx.send(()));
@@ -644,12 +636,10 @@ mod tests {
                 }
             }
 
-            unwrap!(ws::listen("127.0.0.1:44444", |ws_tx| {
-                Server {
-                    tx: tx.clone(),
-                    ws_tx,
-                    count: 0,
-                }
+            unwrap!(ws::listen("127.0.0.1:44444", |ws_tx| Server {
+                tx: tx.clone(),
+                ws_tx,
+                count: 0,
             }));
         });
 
@@ -724,12 +714,10 @@ mod tests {
                 }
             }
 
-            unwrap!(ws::listen("127.0.0.1:44444", |ws_tx| {
-                Server {
-                    tx: tx.clone(),
-                    ws_tx,
-                    count: 0,
-                }
+            unwrap!(ws::listen("127.0.0.1:44444", |ws_tx| Server {
+                tx: tx.clone(),
+                ws_tx,
+                count: 0,
             }));
         });
 
