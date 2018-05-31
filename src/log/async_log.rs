@@ -52,7 +52,7 @@ pub struct AsyncConsoleAppenderBuilder {
 
 impl AsyncConsoleAppenderBuilder {
     pub fn encoder(self, encoder: Box<Encode>) -> Self {
-        AsyncConsoleAppenderBuilder { encoder: encoder }
+        AsyncConsoleAppenderBuilder { encoder }
     }
 
     pub fn build(self) -> AsyncAppender {
@@ -84,7 +84,7 @@ impl AsyncFileAppenderBuilder {
     pub fn encoder(self, encoder: Box<Encode>) -> Self {
         AsyncFileAppenderBuilder {
             path: self.path,
-            encoder: encoder,
+            encoder,
             append: self.append,
             timestamp: self.timestamp,
         }
@@ -94,7 +94,7 @@ impl AsyncFileAppenderBuilder {
         AsyncFileAppenderBuilder {
             path: self.path,
             encoder: self.encoder,
-            append: append,
+            append,
             timestamp: self.timestamp,
         }
     }
@@ -104,7 +104,7 @@ impl AsyncFileAppenderBuilder {
             path: self.path,
             encoder: self.encoder,
             append: self.append,
-            timestamp: timestamp,
+            timestamp,
         }
     }
 
@@ -149,7 +149,7 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
     pub fn encoder(self, encoder: Box<Encode>) -> Self {
         AsyncServerAppenderBuilder {
             addr: self.addr,
-            encoder: encoder,
+            encoder,
             no_delay: self.no_delay,
         }
     }
@@ -158,7 +158,7 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
         AsyncServerAppenderBuilder {
             addr: self.addr,
             encoder: self.encoder,
-            no_delay: no_delay,
+            no_delay,
         }
     }
 
@@ -516,7 +516,7 @@ impl AsyncAppender {
         });
 
         AsyncAppender {
-            encoder: encoder,
+            encoder,
             tx: Mutex::new(tx),
             _raii_joiner: joiner,
         }

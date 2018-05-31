@@ -123,9 +123,9 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category
         event_category_tx: mpsc::Sender<Category>,
     ) -> EventSender<Category, EventSubset> {
         EventSender {
-            event_tx: event_tx,
-            event_category: event_category,
-            event_category_tx: event_category_tx,
+            event_tx,
+            event_category,
+            event_category_tx,
         }
     }
 
