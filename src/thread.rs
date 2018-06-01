@@ -30,7 +30,9 @@ impl fmt::Debug for Joiner {
 impl Joiner {
     /// Create a new instance of self-managing thread joiner
     pub fn new(joiner: JoinHandle<()>) -> Joiner {
-        Joiner { joiner: Some(joiner) }
+        Joiner {
+            joiner: Some(joiner),
+        }
     }
 
     /// Releases the `Joiner` by detaching the thread.

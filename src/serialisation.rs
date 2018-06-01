@@ -7,8 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use bincode::{Bounded, ErrorKind, Infinite, deserialize, deserialize_from, serialize,
-              serialize_into, serialized_size, serialized_size_bounded};
+use bincode::{
+    deserialize, deserialize_from, serialize, serialize_into, serialized_size,
+    serialized_size_bounded, Bounded, ErrorKind, Infinite,
+};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::io::{Cursor, Read, Write};
@@ -60,9 +62,7 @@ pub fn deserialise<T>(data: &[u8]) -> Result<T, SerialisationError>
 where
     T: Serialize + DeserializeOwned,
 {
-    let value = deserialize(data).map_err(
-        |e| SerialisationError::Deserialise(*e),
-    )?;
+    let value = deserialize(data).map_err(|e| SerialisationError::Deserialise(*e))?;
     if serialized_size(&value) != data.len() as u64 {
         return Err(SerialisationError::DeserialiseExtraBytes);
     }
@@ -75,9 +75,8 @@ where
     T: DeserializeOwned,
 {
     let mut cursor = Cursor::new(data);
-    let value = deserialize_from(&mut cursor, size_limit).map_err(|e| {
-        SerialisationError::Deserialise(*e)
-    })?;
+    let value =
+        deserialize_from(&mut cursor, size_limit).map_err(|e| SerialisationError::Deserialise(*e))?;
     if cursor.position() != data.len() as u64 {
         return Err(SerialisationError::DeserialiseExtraBytes);
     }
@@ -131,14 +130,12 @@ pub fn serialised_size_with_limit<T: Serialize>(data: &T, max: u64) -> Option<u6
     serialized_size_bounded(data, max)
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use bincode::{Bounded, ErrorKind};
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde::de::{self, Visitor};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;
     use std::io::Cursor;
 

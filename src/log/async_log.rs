@@ -12,9 +12,9 @@
 use config_file_handler::FileHandler;
 use log::web_socket::WebSocket;
 use log4rs::append::Append;
-use log4rs::encode::Encode;
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::encode::writer::simple::SimpleWriter;
+use log4rs::encode::Encode;
 use log4rs::file::{Deserialize, Deserializers};
 use logger::LogRecord;
 use regex::Regex;
@@ -28,8 +28,8 @@ use std::io::{self, Stdout, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::Mutex;
 use std::sync::mpsc::{self, Sender};
+use std::sync::Mutex;
 use thread::{self, Joiner};
 
 /// Message terminator for streaming to Log Servers. Servers must look out for this sequence which
@@ -40,7 +40,9 @@ pub struct AsyncConsoleAppender;
 
 impl AsyncConsoleAppender {
     pub fn builder() -> AsyncConsoleAppenderBuilder {
-        AsyncConsoleAppenderBuilder { encoder: Box::new(PatternEncoder::default()) }
+        AsyncConsoleAppenderBuilder {
+            encoder: Box::new(PatternEncoder::default()),
+        }
     }
 }
 
@@ -50,7 +52,7 @@ pub struct AsyncConsoleAppenderBuilder {
 
 impl AsyncConsoleAppenderBuilder {
     pub fn encoder(self, encoder: Box<Encode>) -> Self {
-        AsyncConsoleAppenderBuilder { encoder: encoder }
+        AsyncConsoleAppenderBuilder { encoder }
     }
 
     pub fn build(self) -> AsyncAppender {
@@ -82,7 +84,7 @@ impl AsyncFileAppenderBuilder {
     pub fn encoder(self, encoder: Box<Encode>) -> Self {
         AsyncFileAppenderBuilder {
             path: self.path,
-            encoder: encoder,
+            encoder,
             append: self.append,
             timestamp: self.timestamp,
         }
@@ -92,7 +94,7 @@ impl AsyncFileAppenderBuilder {
         AsyncFileAppenderBuilder {
             path: self.path,
             encoder: self.encoder,
-            append: append,
+            append,
             timestamp: self.timestamp,
         }
     }
@@ -102,7 +104,7 @@ impl AsyncFileAppenderBuilder {
             path: self.path,
             encoder: self.encoder,
             append: self.append,
-            timestamp: timestamp,
+            timestamp,
         }
     }
 
@@ -147,7 +149,7 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
     pub fn encoder(self, encoder: Box<Encode>) -> Self {
         AsyncServerAppenderBuilder {
             addr: self.addr,
-            encoder: encoder,
+            encoder,
             no_delay: self.no_delay,
         }
     }
@@ -156,7 +158,7 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
         AsyncServerAppenderBuilder {
             addr: self.addr,
             encoder: self.encoder,
-            no_delay: no_delay,
+            no_delay,
         }
     }
 
@@ -257,9 +259,9 @@ impl Deserialize for AsyncFileAppenderCreator {
                     )))
                 }
                 None => {
-                    return Err(Box::new(
-                        ConfigError("`output_file_name` is required".to_owned()),
-                    ))
+                    return Err(Box::new(ConfigError(
+                        "`output_file_name` is required".to_owned(),
+                    )))
                 }
             }
         };
@@ -267,9 +269,9 @@ impl Deserialize for AsyncFileAppenderCreator {
         let timestamp = match map.remove(&Value::String("file_timestamp".to_owned())) {
             Some(Value::Bool(t)) => t,
             Some(_) => {
-                return Err(Box::new(
-                    ConfigError("`file_timestamp` must be a boolean".to_owned()),
-                ))
+                return Err(Box::new(ConfigError(
+                    "`file_timestamp` must be a boolean".to_owned(),
+                )))
             }
             None => false,
         };
@@ -287,21 +289,21 @@ impl Deserialize for AsyncFileAppenderCreator {
                         .map(|dur| (dur, stem))
                 })
                 .and_then(|elt| {
-                    path.extension().and_then(|ex| ex.to_str()).map(
-                        |ex| (elt, ex),
-                    )
+                    path.extension()
+                        .and_then(|ex| ex.to_str())
+                        .map(|ex| (elt, ex))
                 })
-                .map_or_else(|| println!("Could not set timestamped file!"), |((dur,
-                   stem),
-                  ext)| {
-                    path_owned.set_file_name(format!("{}-{}.{}", stem, dur.as_secs(), ext))
-                });
+                .map_or_else(
+                    || println!("Could not set timestamped file!"),
+                    |((dur, stem), ext)| {
+                        path_owned.set_file_name(format!("{}-{}.{}", stem, dur.as_secs(), ext))
+                    },
+                );
 
-            path_owned
-                .file_name()
-                .and_then(|f| f.to_str())
-                .map_or_else(|| println!("Could not extract modified file name from path"),
-                             |f| op_file = f.to_string());
+            path_owned.file_name().and_then(|f| f.to_str()).map_or_else(
+                || println!("Could not extract modified file name from path"),
+                |f| op_file = f.to_string(),
+            );
         }
 
         let op_path = match FileHandler::<()>::new(&op_file, true) {
@@ -309,7 +311,7 @@ impl Deserialize for AsyncFileAppenderCreator {
             Err(e) => {
                 return Err(Box::new(ConfigError(format!(
                     "Could not establish log file path: \
-                                                         {:?}",
+                     {:?}",
                     e
                 ))))
             }
@@ -351,31 +353,33 @@ impl Deserialize for AsyncServerAppenderCreator {
         let server_addr = match map.remove(&Value::String("server_addr".to_owned())) {
             Some(Value::String(addr)) => SocketAddr::from_str(&addr[..])?,
             Some(_) => {
-                return Err(Box::new(
-                    ConfigError("`server_addr` must be a string".to_owned()),
-                ))
+                return Err(Box::new(ConfigError(
+                    "`server_addr` must be a string".to_owned(),
+                )))
             }
             None => {
-                return Err(Box::new(
-                    ConfigError("`server_addr` is required".to_owned()),
-                ))
+                return Err(Box::new(ConfigError(
+                    "`server_addr` is required".to_owned(),
+                )))
             }
         };
         let no_delay = match map.remove(&Value::String("no_delay".to_owned())) {
             Some(Value::Bool(no_delay)) => no_delay,
             Some(_) => {
-                return Err(Box::new(
-                    ConfigError("`no_delay` must be a boolean".to_owned()),
-                ))
+                return Err(Box::new(ConfigError(
+                    "`no_delay` must be a boolean".to_owned(),
+                )))
             }
             None => true,
         };
         let pattern = parse_pattern(&mut map, false)?;
 
-        Ok(Box::new(AsyncServerAppender::builder(server_addr)
-            .encoder(Box::new(pattern))
-            .no_delay(no_delay)
-            .build()?))
+        Ok(Box::new(
+            AsyncServerAppender::builder(server_addr)
+                .encoder(Box::new(pattern))
+                .no_delay(no_delay)
+                .build()?,
+        ))
     }
 }
 
@@ -398,9 +402,9 @@ impl Deserialize for AsyncWebSockAppenderCreator {
         let server_url = match map.remove(&Value::String("server_url".to_owned())) {
             Some(Value::String(url)) => url,
             Some(_) => {
-                return Err(Box::new(
-                    ConfigError("`server_url` must be a string".to_owned()),
-                ))
+                return Err(Box::new(ConfigError(
+                    "`server_url` must be a string".to_owned(),
+                )))
             }
             None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
         };
@@ -408,18 +412,20 @@ impl Deserialize for AsyncWebSockAppenderCreator {
         let session_id = match map.remove(&Value::String("session_id".to_owned())) {
             Some(Value::String(id)) => Some(id),
             Some(_) => {
-                return Err(Box::new(
-                    ConfigError("`session_id` must be a string".to_owned()),
-                ));
+                return Err(Box::new(ConfigError(
+                    "`session_id` must be a string".to_owned(),
+                )));
             }
             None => None,
         };
 
         let pattern = parse_pattern(&mut map, true)?;
-        Ok(Box::new(AsyncWebSockAppender::builder(server_url)
-            .encoder(Box::new(pattern))
-            .session_id(session_id)
-            .build()?))
+        Ok(Box::new(
+            AsyncWebSockAppender::builder(server_url)
+                .encoder(Box::new(pattern))
+                .session_id(session_id)
+                .build()?,
+        ))
     }
 }
 
@@ -431,9 +437,9 @@ fn parse_pattern(
 
     match map.remove(&Value::String("pattern".to_owned())) {
         Some(Value::String(pattern)) => Ok(PatternEncoder::new(&pattern)),
-        Some(_) => Err(Box::new(
-            ConfigError("`pattern` must be a string".to_owned()),
-        )),
+        Some(_) => Err(Box::new(ConfigError(
+            "`pattern` must be a string".to_owned(),
+        ))),
         None => {
             if is_websocket {
                 Ok(make_json_pattern(rand::random()))
@@ -447,8 +453,8 @@ fn parse_pattern(
 pub fn make_json_pattern(unique_id: u64) -> PatternEncoder {
     let pattern = format!(
         "{{{{\"id\":\"{}\",\"level\":\"{{l}}\",\"time\":\"{{d}}\",\"thread\":\
-                           \"{{T}}\",\"module\":\"{{M}}\",\"file\":\"{{f}}\",\"line\":\"{{L}}\",\
-                           \"msg\":\"{{m}}\"}}}}",
+         \"{{T}}\",\"module\":\"{{M}}\",\"file\":\"{{f}}\",\"line\":\"{{L}}\",\
+         \"msg\":\"{{m}}\"}}}}",
         unique_id
     );
 
@@ -510,7 +516,7 @@ impl AsyncAppender {
         });
 
         AsyncAppender {
-            encoder: encoder,
+            encoder,
             tx: Mutex::new(tx),
             _raii_joiner: joiner,
         }

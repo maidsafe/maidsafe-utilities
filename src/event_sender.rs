@@ -123,9 +123,9 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category
         event_category_tx: mpsc::Sender<Category>,
     ) -> EventSender<Category, EventSubset> {
         EventSender {
-            event_tx: event_tx,
-            event_category: event_category,
-            event_category_tx: event_category_tx,
+            event_tx,
+            event_category,
+            event_category_tx,
         }
     }
 
@@ -146,7 +146,8 @@ impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> EventSender<Category
 // it requires EventSubset to be clonable even though mpsc::Sender<EventSubset> does
 // not require EventSubset to be clonable for itself being cloned.
 impl<Category: fmt::Debug + Clone, EventSubset: fmt::Debug> Clone
-    for EventSender<Category, EventSubset> {
+    for EventSender<Category, EventSubset>
+{
     fn clone(&self) -> EventSender<Category, EventSubset> {
         EventSender {
             event_tx: self.event_tx.clone(),
@@ -212,9 +213,8 @@ mod tests {
         let nw_event_sender =
             NetworkEventSender::new(network_event_tx, EventCategory::Network, category_tx);
 
-        let _joiner = ::thread::named(
-            "EventListenerThread",
-            move || for it in category_rx.iter() {
+        let _joiner = ::thread::named("EventListenerThread", move || {
+            for it in category_rx.iter() {
                 match it {
                     EventCategory::Network => {
                         if let Ok(network_event) = network_event_rx.try_recv() {
@@ -234,8 +234,8 @@ mod tests {
                         }
                     }
                 }
-            },
-        );
+            }
+        });
 
         assert!(nw_event_sender.send(NetworkEvent::Connected(TOKEN)).is_ok());
         assert!(

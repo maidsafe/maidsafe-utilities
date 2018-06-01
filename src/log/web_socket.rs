@@ -63,7 +63,8 @@ impl WebSocket {
         while let Some(msg) = self.message_buffer.pop_front() {
             let to_send = msg.clone();
 
-            if self.get_sender()
+            if self
+                .get_sender()
                 .and_then(|sender| sender.send(to_send))
                 .is_err()
             {
@@ -90,9 +91,7 @@ impl WebSocket {
         self.socket
             .as_ref()
             .map(|&(ref sender, _)| sender)
-            .map_err(|_| {
-                ws::Error::new(ws::ErrorKind::Internal, "No web socket thread running")
-            })
+            .map_err(|_| ws::Error::new(ws::ErrorKind::Internal, "No web socket thread running"))
     }
 
     /// Try to queue a message. If the buffer is full the message is dropped.
@@ -137,10 +136,8 @@ impl WebSocket {
                 fn build_request(&mut self, url: &Url) -> ws::Result<Request> {
                     let mut req = Request::from_url(url)?;
                     if let Some(ref session_id) = self.session_id {
-                        req.headers_mut().push((
-                            SESSION_ID_HEADER.into(),
-                            session_id.clone().into(),
-                        ));
+                        req.headers_mut()
+                            .push((SESSION_ID_HEADER.into(), session_id.clone().into()));
                     }
                     Ok(req)
                 }
@@ -181,9 +178,9 @@ impl WebSocket {
 
 impl Drop for WebSocket {
     fn drop(&mut self) {
-        let _ = self.get_sender().and_then(
-            |sender| sender.close(CloseCode::Normal),
-        );
+        let _ = self
+            .get_sender()
+            .and_then(|sender| sender.close(CloseCode::Normal));
     }
 }
 

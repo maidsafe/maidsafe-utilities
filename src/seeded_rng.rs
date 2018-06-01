@@ -10,8 +10,8 @@
 use rand::{self, Rng, SeedableRng, XorShiftRng};
 use std::cell::RefCell;
 use std::fmt::{self, Debug, Display, Formatter};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::thread;
 
 lazy_static! {
@@ -62,10 +62,10 @@ impl SeededRng {
             if current_seed != seed {
                 panic!(
                     "\nThe static seed has already been initialised to a different value via \
-                        a call to `SeededRng::new()`\nor `SeededRng::from_seed(...)`.  This \
-                        could be due to setting a hard-coded value for the seed in a\nsingle \
-                        test case, but running the whole test suite.  If so, try running just \
-                        the single test case.\n"
+                     a call to `SeededRng::new()`\nor `SeededRng::from_seed(...)`.  This \
+                     could be due to setting a hard-coded value for the seed in a\nsingle \
+                     test case, but running the whole test suite.  If so, try running just \
+                     the single test case.\n"
                 );
             }
         } else {
@@ -155,7 +155,6 @@ impl Rng for SeededRng {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,11 +166,13 @@ mod tests {
     // different seed value).  This check can't be moved to its own test case since if it runs
     // first it will poison the mutex protecting the static seed, causing this test to fail.
     #[test]
-    #[should_panic(expected = "\nThe static seed has already been initialised to a different value \
-                               via a call to `SeededRng::new()`\nor `SeededRng::from_seed(...)`.  \
-                               This could be due to setting a hard-coded value for the seed in \
-                               a\nsingle test case, but running the whole test suite.  If so, try \
-                               running just the single test case.\n")]
+    #[should_panic(
+        expected = "\nThe static seed has already been initialised to a different value \
+                    via a call to `SeededRng::new()`\nor `SeededRng::from_seed(...)`.  \
+                    This could be due to setting a hard-coded value for the seed in \
+                    a\nsingle test case, but running the whole test suite.  If so, try \
+                    running just the single test case.\n"
+    )]
     fn seeded_rng() {
         {
             let seed = [0, 1, 2, 3];
@@ -215,8 +216,8 @@ mod tests {
                 let _rng = SeededRng::new();
                 panic!(
                     "This is an induced panic to test if \
-                                             `ALREADY_PRINTED` global is toggled only once on \
-                                             panic"
+                     `ALREADY_PRINTED` global is toggled only once on \
+                     panic"
                 );
             });
 
