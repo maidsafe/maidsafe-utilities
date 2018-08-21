@@ -287,13 +287,11 @@ impl Deserialize for AsyncFileAppenderCreator {
                         .map_err(|e| println!("Could not get timestamp: {:?}", e))
                         .ok()
                         .map(|dur| (dur, stem))
-                })
-                .and_then(|elt| {
+                }).and_then(|elt| {
                     path.extension()
                         .and_then(|ex| ex.to_str())
                         .map(|ex| (elt, ex))
-                })
-                .map_or_else(
+                }).map_or_else(
                     || println!("Could not set timestamped file!"),
                     |((dur, stem), ext)| {
                         path_owned.set_file_name(format!("{}-{}.{}", stem, dur.as_secs(), ext))

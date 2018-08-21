@@ -75,8 +75,8 @@ where
     T: DeserializeOwned,
 {
     let mut cursor = Cursor::new(data);
-    let value =
-        deserialize_from(&mut cursor, size_limit).map_err(|e| SerialisationError::Deserialise(*e))?;
+    let value = deserialize_from(&mut cursor, size_limit)
+        .map_err(|e| SerialisationError::Deserialise(*e))?;
     if cursor.position() != data.len() as u64 {
         return Err(SerialisationError::DeserialiseExtraBytes);
     }
