@@ -23,3 +23,6 @@ serde-value = "~0.5.1"
 unwrap = "~1.2.0"
 url = "~1.5.1"
 ws = "~0.7.3"
+
+[features]
+testing = []

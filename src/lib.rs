@@ -84,6 +84,7 @@ extern crate ws;
 pub mod event_sender;
 /// Allows initialising the `env_logger` with a standard message format.
 pub mod log;
+mod log_or_panic;
 mod seeded_rng;
 /// Functions for serialisation and deserialisation
 pub mod serialisation;
