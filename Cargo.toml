@@ -11,7 +11,7 @@ version = "0.15.0"
 
 [dependencies]
 bincode = "~0.8.0"
-config_file_handler = "~0.10.0"
+config_file_handler = "~0.11.0"
 lazy_static = "~0.2.8"
 log = "~0.3.8"
 log4rs = {version = "~0.7.0", features=["toml_format"]}
@@ -20,6 +20,6 @@ rand = "~0.3.15"
 regex = "~0.2.2"
 serde = "~1.0.25"
 serde-value = "~0.5.1"
-unwrap = "~1.1.0"
+unwrap = "~1.2.0"
 url = "~1.5.1"
 ws = "~0.7.3"
