@@ -153,7 +153,7 @@ mod tests {
 
         // Try to parse a `String` into a `u64` to check the unused bytes triggers an error.
         let serialised_string = unwrap!(serialise(&"Another string".to_string()));
-        match deserialise::<u64>(&serialised_string).unwrap_err() {
+        match unwrap_err!(deserialise::<u64>(&serialised_string)) {
             SerialisationError::DeserialiseExtraBytes => (),
             err => panic!("{:?}", err),
         }
@@ -282,12 +282,12 @@ mod tests {
 
         // Try to trigger an OOM crash.
         let tampered = [255u8; 9];
-        match deserialise::<Wrapper>(&tampered).unwrap_err() {
+        match unwrap_err!(deserialise::<Wrapper>(&tampered)) {
             SerialisationError::Deserialise(_) => (),
             err => panic!("{:?}", err),
         }
 
-        match deserialise::<Wrapper>(&[1, 0, 0, 0, 0, 0, 0, 0, 255, 255]).unwrap_err() {
+        match unwrap_err!(deserialise::<Wrapper>(&[1, 0, 0, 0, 0, 0, 0, 0, 255, 255])) {
             SerialisationError::DeserialiseExtraBytes => (),
             err => panic!("{:?}", err),
         }
