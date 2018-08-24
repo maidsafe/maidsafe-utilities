@@ -185,7 +185,6 @@ impl Drop for WebSocket {
 }
 
 /// Check that a handshake request has the correct session ID value.
-#[cfg(test)]
 pub fn validate_request(req: &Request, expected_id: Option<&str>) -> ws::Result<ws::Response> {
     match (expected_id, req.header(SESSION_ID_HEADER)) {
         (Some(exp), Some(obs)) if &obs[..] == exp.as_bytes() => ws::Response::from_request(req),

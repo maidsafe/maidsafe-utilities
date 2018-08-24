@@ -31,10 +31,6 @@ script:
       (
         set -x;
         cargo test --release --verbose &&
-        cargo test --release --verbose -- --ignored print_seed_only_once_for_multiple_failures &&
-        cargo test --release --verbose -- --ignored override_log_path &&
-        cargo test --release --verbose -- --ignored web_socket_logging &&
-        cargo test --release --verbose -- --ignored web_socket_reconnect &&
         cargo test --release --verbose --features=testing
       );
     elif [ "${TRAVIS_OS_NAME}" = linux ]; then
