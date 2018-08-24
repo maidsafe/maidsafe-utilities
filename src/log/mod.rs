@@ -569,7 +569,12 @@ mod tests {
             }
 
             for it in log_msgs.iter().enumerate() {
-                assert!(it.1.contains(&format!("This is message {}", it.0)[..]));
+                assert!(
+                    it.1.contains(&format!("This is message {}", it.0)[..]),
+                    "{} -- {}",
+                    it.0,
+                    it.1
+                );
                 assert!(!it.1.contains('#'));
             }
         });
