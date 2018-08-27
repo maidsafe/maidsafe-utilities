@@ -1,5 +1,9 @@
 # MaidSafe Utilities - Change Log
 
+## [0.17.0]
+- Change log tests to integration ones
+- Add log_or_panic macro
+
 ## [0.16.0]
 - Update to dual license (MIT/BSD)
 - Upgrade unwrap version to 1.2.0
