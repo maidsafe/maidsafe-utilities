@@ -7,10 +7,6 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-//! # MaidSafe Utilities
-//!
-//! Rust utility functions provided by `MaidSafe`.
-
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png",
     html_favicon_url = "https://maidsafe.net/img/favicon.ico",
@@ -62,33 +58,49 @@
     variant_size_differences
 )]
 
-extern crate bincode;
 extern crate config_file_handler;
 #[macro_use]
-extern crate lazy_static;
-#[cfg_attr(test, macro_use)]
 extern crate log as logger;
-extern crate log4rs;
-#[macro_use]
-extern crate quick_error;
-extern crate rand;
-extern crate regex;
-extern crate serde;
-extern crate serde_value;
+extern crate maidsafe_utilities;
 #[macro_use]
 extern crate unwrap;
-extern crate url;
-extern crate ws;
 
-/// Utilities related to event-subsetting.
-pub mod event_sender;
-/// Allows initialising the `env_logger` with a standard message format.
-pub mod log;
-mod log_or_panic;
-mod seeded_rng;
-/// Functions for serialisation and deserialisation
-pub mod serialisation;
-/// Utilities related to threading.
-pub mod thread;
+use maidsafe_utilities::log;
+use std::env;
+use std::fs::{self, File};
+use std::io::Read;
+use std::thread;
+use std::time::Duration;
 
-pub use seeded_rng::SeededRng;
+#[test]
+fn override_logfile_path() {
+    const LOG_FILE: &str = "secret-log-file-name.log";
+
+    let mut current_dir = unwrap!(env::current_dir());
+    let mut current_bin_dir = unwrap!(config_file_handler::current_bin_dir());
+
+    if current_dir.as_path() != current_bin_dir.as_path() {
+        // Try to copy log.toml from the current dir to bin dir so that the config_file_handler
+        // can find it
+        current_dir.push("sample_log_file/log.toml");
+        current_bin_dir.push("log.toml");
+
+        let _ = unwrap!(fs::copy(current_dir, current_bin_dir));
+    }
+
+    unwrap!(log::init_with_output_file(false, LOG_FILE));
+
+    error!("SECRET-MESSAGE");
+
+    // Wait for async file writer
+    thread::sleep(Duration::from_millis(500));
+
+    let mut log_file_path = unwrap!(config_file_handler::current_bin_dir());
+    log_file_path.push(LOG_FILE);
+
+    let mut file = unwrap!(File::open(log_file_path));
+    let mut contents = String::new();
+    let _ = unwrap!(file.read_to_string(&mut contents));
+
+    assert!(contents.contains("SECRET-MESSAGE"));
+}

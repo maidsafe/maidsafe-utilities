@@ -1,7 +1,7 @@
 // Copyright 2018 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
-// http://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
+// https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
 // https://opensource.org/licenses/BSD-3-Clause>, at your option. This file may not be copied,
 // modified, or distributed except according to those terms. Please review the Licences for the
 // specific language governing permissions and limitations relating to use of the SAFE Network
@@ -74,6 +74,7 @@
 //! severe ones.
 
 pub use self::async_log::MSG_TERMINATOR;
+pub use self::web_socket::validate_request as validate_web_socket_request;
 
 mod async_log;
 mod web_socket;
@@ -426,48 +427,7 @@ fn init_once_guard<F: FnOnce() -> Result<(), String>>(init_fn: F) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::parse_loggers;
-    use super::*;
-    use config_file_handler::current_bin_dir;
     use logger::LogLevelFilter;
-    use std::env;
-    use std::fs::{self, File};
-    use std::io::Read;
-    use std::net::TcpListener;
-    use std::str;
-    use std::sync::mpsc::{self, Sender};
-    use std::thread;
-    use std::time::Duration;
-    use ws;
-    use ws::{Handler, Message};
-
-    // This test passes in isolation but due to static nature of INITIALISE_LOGGER, if
-    // server_logging test runs first then this test will fail with "Logger already initialised"
-    // message.
-    //
-    // NOTE:
-    // Do not change the name of this function without changing it in the CI scripts.
-    #[test]
-    #[ignore]
-    fn override_log_path() {
-        const LOG_FILE: &str = "secret-log-file-name.log";
-
-        setup_log_config();
-        unwrap!(init_impl(false, Some(LOG_FILE.to_owned())));
-
-        error!("SECRET-MESSAGE");
-
-        // Wait for async file writer
-        thread::sleep(Duration::from_millis(500));
-
-        let mut log_file_path = unwrap!(current_bin_dir());
-        log_file_path.push(LOG_FILE);
-
-        let mut file = unwrap!(File::open(log_file_path));
-        let mut contents = String::new();
-        let _ = unwrap!(file.read_to_string(&mut contents));
-
-        assert!(contents.contains("SECRET-MESSAGE"));
-    }
 
     #[test]
     fn test_parse_loggers() {
@@ -525,224 +485,5 @@ mod tests {
 
         assert_eq!(loggers[5].name(), "a3");
         assert_eq!(loggers[5].level(), LogLevelFilter::Info);
-    }
-
-    #[test]
-    fn server_logging() {
-        const MSG_COUNT: usize = 3;
-
-        let (tx, rx) = mpsc::channel();
-
-        // Start Log Message Server
-        let _raii_joiner = ::thread::named("LogMessageServer", move || {
-            use std::io::Read;
-
-            let listener = unwrap!(TcpListener::bind("127.0.0.1:55555"));
-            unwrap!(tx.send(()));
-            let (mut stream, _) = unwrap!(listener.accept());
-
-            let mut log_msgs = Vec::with_capacity(MSG_COUNT);
-
-            let mut read_buf = Vec::with_capacity(1024);
-            let mut scratch_buf = [0u8; 1024];
-            let mut search_frm_index = 0;
-
-            while log_msgs.len() < MSG_COUNT {
-                let bytes_rxd = unwrap!(stream.read(&mut scratch_buf));
-                if bytes_rxd == 0 {
-                    unreachable!("Should not have encountered shutdown yet");
-                }
-
-                read_buf.extend_from_slice(&scratch_buf[..bytes_rxd]);
-
-                while read_buf.len() - search_frm_index >= MSG_TERMINATOR.len() {
-                    if read_buf[search_frm_index..].starts_with(&MSG_TERMINATOR) {
-                        log_msgs.push(
-                            unwrap!(str::from_utf8(&read_buf[..search_frm_index])).to_owned(),
-                        );
-                        read_buf = read_buf.split_off(search_frm_index + MSG_TERMINATOR.len());
-                        search_frm_index = 0;
-                    } else {
-                        search_frm_index += 1;
-                    }
-                }
-            }
-
-            for it in log_msgs.iter().enumerate() {
-                assert!(it.1.contains(&format!("This is message {}", it.0)[..]));
-                assert!(!it.1.contains('#'));
-            }
-        });
-
-        unwrap!(rx.recv());
-
-        unwrap!(init_to_server("127.0.0.1:55555", true, false));
-
-        info!("This message should not be found by default log level");
-
-        warn!("This is message 0");
-        trace!("This message should not be found by default log level");
-        warn!("This is message 1");
-
-        // Some interval before the 3rd message to test if server logic above works fine with
-        // separate arrival of messages. Without sleep it will usually receive all 3 messages in a
-        // single read cycle
-        thread::sleep(Duration::from_millis(500));
-
-        debug!("This message should not be found by default log level");
-        error!("This is message 2");
-    }
-
-    // This test passes in isolation but due to static nature of INITIALISE_LOGGER, if
-    // server_logging test runs first then this test will fail with "Logger already initialised"
-    // message.
-    //
-    // NOTE:
-    // Do not change the name of this function without changing it in the CI scripts.
-    #[test]
-    #[ignore]
-    fn web_socket_logging() {
-        use self::web_socket::validate_request;
-        use ws::{Request, Response};
-
-        const MSG_COUNT: usize = 3;
-        const MAGIC_VALUE: &str = "magic-value";
-
-        let (tx, rx) = mpsc::channel();
-
-        // Start Log Message Server
-        let _thread = ::thread::named("LogMessageWebServer", move || {
-            struct Server {
-                tx: Sender<()>,
-                ws_tx: ws::Sender,
-                count: usize,
-            }
-
-            impl Handler for Server {
-                fn on_request(&mut self, req: &Request) -> ws::Result<Response> {
-                    validate_request(req, Some(MAGIC_VALUE))
-                }
-
-                fn on_message(&mut self, msg: Message) -> ws::Result<()> {
-                    let text = unwrap!(msg.as_text());
-                    assert!(text.contains(&format!("This is message {}", self.count)[..]));
-                    self.count += 1;
-                    if self.count == MSG_COUNT {
-                        unwrap!(self.tx.send(()));
-                        unwrap!(self.ws_tx.shutdown());
-                    }
-
-                    Ok(())
-                }
-            }
-
-            unwrap!(ws::listen("127.0.0.1:44444", |ws_tx| Server {
-                tx: tx.clone(),
-                ws_tx,
-                count: 0,
-            }));
-        });
-
-        // Allow sometime for server to start listening
-        thread::sleep(Duration::from_millis(100));
-
-        unwrap!(init_to_web_socket(
-            "ws://127.0.0.1:44444",
-            Some(MAGIC_VALUE.into()),
-            false,
-            false,
-        ));
-
-        info!("This message should not be found by default log level");
-        warn!("This is message 0");
-        trace!("This message should not be found by default log level");
-        warn!("This is message 1");
-
-        // Some interval before the 3rd message to test if server logic above works fine with
-        // separate arrival of messages. Without sleep it will usually receive all 3 messages in a
-        // single read cycle
-        thread::sleep(Duration::from_millis(500));
-
-        debug!("This message should not be found by default log level");
-        error!("This is message 2");
-
-        unwrap!(rx.recv_timeout(Duration::from_secs(10)));
-    }
-
-    // This test passes in isolation but due to static nature of INITIALISE_LOGGER, if
-    // server_logging test runs first then this test will fail with "Logger already initialised"
-    // message.
-    //
-    // NOTE:
-    // Do not change the name of this function without changing it in the CI scripts.
-    #[test]
-    #[ignore]
-    fn web_socket_reconnect() {
-        const MSG_COUNT: usize = 3;
-
-        let (tx, rx) = mpsc::channel();
-
-        // Start logging messages to a non-existant server.
-        unwrap!(init_to_web_socket(
-            "ws://127.0.0.1:44444",
-            None,
-            false,
-            false,
-        ));
-
-        info!("This message should not be found by default log level");
-        warn!("This is message 0");
-        trace!("This message should not be found by default log level");
-        warn!("This is message 1");
-
-        // Start Log Message Server
-        let _thread = ::thread::named("LogMessageWebServer", move || {
-            struct Server {
-                tx: Sender<()>,
-                ws_tx: ws::Sender,
-                count: usize,
-            }
-
-            impl Handler for Server {
-                fn on_message(&mut self, _: Message) -> ws::Result<()> {
-                    self.count += 1;
-                    if self.count == MSG_COUNT {
-                        unwrap!(self.tx.send(()));
-                        unwrap!(self.ws_tx.shutdown());
-                    }
-                    Ok(())
-                }
-            }
-
-            unwrap!(ws::listen("127.0.0.1:44444", |ws_tx| Server {
-                tx: tx.clone(),
-                ws_tx,
-                count: 0,
-            }));
-        });
-
-        // Wait for the server to start-up, then send another message.
-        thread::sleep(Duration::from_millis(100));
-
-        // When we send the third message, the logger should auto-reconnect and send all
-        // three messages that it has buffered.
-        debug!("This message should not be found by default log level");
-        error!("This is message 2");
-
-        unwrap!(rx.recv_timeout(Duration::from_secs(2)));
-    }
-
-    fn setup_log_config() {
-        let mut current_dir = unwrap!(env::current_dir());
-        let mut current_bin_dir = unwrap!(current_bin_dir());
-
-        if current_dir.as_path() != current_bin_dir.as_path() {
-            // Try to copy log.toml from the current dir to bin dir
-            // so that the config_file_handler can find it
-            current_dir.push("sample_log_file/log.toml");
-            current_bin_dir.push("log.toml");
-
-            let _ = unwrap!(fs::copy(current_dir, current_bin_dir));
-        }
     }
 }

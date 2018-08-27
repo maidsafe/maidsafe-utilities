@@ -1,7 +1,7 @@
 // Copyright 2018 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
-// http://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
+// https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
 // https://opensource.org/licenses/BSD-3-Clause>, at your option. This file may not be copied,
 // modified, or distributed except according to those terms. Please review the Licences for the
 // specific language governing permissions and limitations relating to use of the SAFE Network
@@ -185,7 +185,6 @@ impl Drop for WebSocket {
 }
 
 /// Check that a handshake request has the correct session ID value.
-#[cfg(test)]
 pub fn validate_request(req: &Request, expected_id: Option<&str>) -> ws::Result<ws::Response> {
     match (expected_id, req.header(SESSION_ID_HEADER)) {
         (Some(exp), Some(obs)) if &obs[..] == exp.as_bytes() => ws::Response::from_request(req),

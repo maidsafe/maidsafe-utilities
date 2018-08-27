@@ -1,7 +1,7 @@
 // Copyright 2018 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
-// http://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
+// https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
 // https://opensource.org/licenses/BSD-3-Clause>, at your option. This file may not be copied,
 // modified, or distributed except according to those terms. Please review the Licences for the
 // specific language governing permissions and limitations relating to use of the SAFE Network
@@ -167,16 +167,17 @@ mod tests {
     // first it will poison the mutex protecting the static seed, causing this test to fail.
     #[test]
     #[should_panic(
-        expected = "\nThe static seed has already been initialised to a different value \
-                    via a call to `SeededRng::new()`\nor `SeededRng::from_seed(...)`.  \
-                    This could be due to setting a hard-coded value for the seed in \
-                    a\nsingle test case, but running the whole test suite.  If so, try \
-                    running just the single test case.\n"
+        expected = "\nThe static seed has already been initialised to a different value via a call \
+                    to `SeededRng::new()`\nor `SeededRng::from_seed(...)`.  This could be due to \
+                    setting a hard-coded value for the seed in a\nsingle test case, but running \
+                    the whole test suite.  If so, try running just the single test case.\n"
     )]
     fn seeded_rng() {
+        assert!(!ALREADY_PRINTED.load(Ordering::Relaxed));
         {
             let seed = [0, 1, 2, 3];
             let mut seeded_rng1 = SeededRng::from_seed(seed);
+            assert!(!ALREADY_PRINTED.load(Ordering::Relaxed));
             let mut seeded_rng2 = SeededRng::new();
             let expected = 12_884_903_946;
             assert_eq!(seeded_rng1.next_u64(), expected);
@@ -195,34 +196,19 @@ mod tests {
             assert_eq!(rng2_from_seeded_rng2.next_u64(), expected2);
         }
 
-        let _ = SeededRng::from_seed([3, 2, 1, 0]);
-    }
-
-    // Run this in isolation to `seeded_rng` test as it assumes `ALREADY_PRINTED` is not hampered
-    // by other tests (`seeded_rng` test will interfere with this assumption and will produce
-    // random failures as `ALREADY_PRINTED` is a global)
-    //
-    // NOTE:
-    // Do not change the name of this function without changing it in the CI scripts.
-    #[ignore]
-    #[test]
-    fn print_seed_only_once_for_multiple_failures() {
-        assert!(!ALREADY_PRINTED.load(Ordering::Relaxed));
-        let _ = SeededRng::new();
-        assert!(!ALREADY_PRINTED.load(Ordering::Relaxed));
-
         for _ in 0..2 {
             let j = thread::spawn(move || {
                 let _rng = SeededRng::new();
                 panic!(
-                    "This is an induced panic to test if \
-                     `ALREADY_PRINTED` global is toggled only once on \
-                     panic"
+                    "This is an induced panic to test if `ALREADY_PRINTED` global is toggled only \
+                     once on panic"
                 );
             });
 
             assert!(j.join().is_err());
             assert!(ALREADY_PRINTED.load(Ordering::Relaxed));
         }
+
+        let _ = SeededRng::from_seed([3, 2, 1, 0]);
     }
 }
