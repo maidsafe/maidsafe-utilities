@@ -24,7 +24,7 @@
 #[macro_export]
 macro_rules! log_or_panic {
     ($($arg:tt)*) => {
-        if cfg!(feature = "testing") && !::std::thread::panicking() {
+        if cfg!(any(test, feature = "testing")) && !::std::thread::panicking() {
             panic!($($arg)*);
         } else {
             error!($($arg)*);
@@ -43,10 +43,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(
-        feature = "testing",
-        should_panic(expected = "Bad value: 1746")
-    )]
+    #[should_panic(expected = "Bad value: 1746")]
     fn log_or_panic() {
         // Use the helper to check that we can handle calling `log_or_panic!` while panicking.
         let _helper = Helper;
