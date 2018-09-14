@@ -125,6 +125,15 @@ where
     init_once_guard(|| init_impl(show_thread_name, Some(output_file_name_override.into())))
 }
 
+#[cfg(target_os = "android")]
+fn init_android_logger(deserializers: &mut Deserializers) {
+    use self::async_log::AsyncAndroidAppenderCreator;
+    deserializers.insert("async_android", AsyncAndroidAppenderCreator);
+}
+
+#[cfg(not(target_os = "android"))]
+fn init_android_logger(_: &mut Deserializers) {}
+
 fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> Result<(), String> {
     let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false)
         .ok()
@@ -139,6 +148,7 @@ fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> R
         );
         deserializers.insert("async_server", AsyncServerAppenderCreator);
         deserializers.insert("async_web_socket", AsyncWebSockAppenderCreator);
+        init_android_logger(&mut deserializers);
 
         log4rs::init_file(config_path, deserializers).map_err(|e| format!("{}", e))
     } else {

@@ -592,3 +592,96 @@ impl SyncWrite for WebSocket {
         Ok(())
     }
 }
+
+#[cfg(target_os = "android")]
+pub use self::android::*;
+
+#[cfg(target_os = "android")]
+mod android {
+    #![allow(unsafe_code)]
+    use super::*;
+    use android_log_sys::{LogPriority, __android_log_write};
+    use logger::Level;
+    use std::ffi::CString;
+    use std::os::raw::c_char;
+
+    const LOG_TAG: &[u8] = b"maidsafe_utilities::log\0";
+
+    pub struct AsyncAndroidAppender;
+
+    impl AsyncAndroidAppender {
+        pub fn builder() -> AsyncAndroidAppenderBuilder {
+            AsyncAndroidAppenderBuilder {
+                encoder: Box::new(PatternEncoder::default()),
+            }
+        }
+    }
+
+    pub struct AsyncAndroidAppenderBuilder {
+        encoder: Box<Encode>,
+    }
+
+    impl AsyncAndroidAppenderBuilder {
+        pub fn encoder(self, encoder: Box<Encode>) -> Self {
+            AsyncAndroidAppenderBuilder { encoder }
+        }
+
+        pub fn build(self) -> AsyncAppender {
+            AsyncAppender::new(AndroidWriter, self.encoder)
+        }
+    }
+
+    struct AndroidWriter;
+
+    impl SyncWrite for AndroidWriter {
+        fn sync_write(&mut self, buf: &[u8], level: Level) -> io::Result<()> {
+            unsafe {
+                let _ = __android_log_write(
+                    convert_priority(level) as i32,
+                    LOG_TAG.as_ptr() as *const c_char,
+                    CString::new(buf)?.as_ptr(),
+                );
+            }
+            Ok(())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn convert_priority(level: Level) -> LogPriority {
+        match level {
+            Level::Error => LogPriority::ERROR,
+            Level::Warn => LogPriority::WARN,
+            Level::Info => LogPriority::INFO,
+            Level::Debug => LogPriority::DEBUG,
+            Level::Trace => LogPriority::VERBOSE,
+        }
+    }
+
+    pub struct AsyncAndroidAppenderCreator;
+
+    impl Deserialize for AsyncAndroidAppenderCreator {
+        type Trait = Append;
+        type Config = Value;
+
+        fn deserialize(
+            &self,
+            config: Value,
+            _deserializers: &Deserializers,
+        ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
+            let mut map = match config {
+                Value::Map(map) => map,
+                _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
+            };
+
+            let pattern = parse_pattern(&mut map, false)?;
+            Ok(Box::new(
+                AsyncAndroidAppender::builder()
+                    .encoder(Box::new(pattern))
+                    .build(),
+            ))
+        }
+    }
+}
