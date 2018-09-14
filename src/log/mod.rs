@@ -90,9 +90,10 @@ use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::file::Deserializers;
-use logger::LogLevelFilter;
+use logger::{LevelFilter as LogLevelFilter, ParseLevelError};
 use rand;
 use std::borrow::Borrow;
+use std::collections::VecDeque;
 use std::env;
 use std::fmt::{self, Display, Formatter};
 use std::net::ToSocketAddrs;
@@ -103,14 +104,14 @@ static INITIALISE_LOGGER: Once = ONCE_INIT;
 static CONFIG_FILE: &str = "log.toml";
 static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 
-/// Initialises the `env_logger` for output to stdout.
+/// Initialises the logger for output to stdout.
 ///
 /// For further details, see the [module docs](index.html).
 pub fn init(show_thread_name: bool) -> Result<(), String> {
     init_once_guard(|| init_impl(show_thread_name, None))
 }
 
-/// Initialises the `env_logger` for output to stdout and takes
+/// Initialises the logger for output to stdout and takes
 /// an output file name that will override the log configuration.
 ///
 /// For further details, see the [module docs](index.html).
@@ -167,7 +168,7 @@ fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> R
     }
 }
 
-/// Initialises the `env_logger` for output to a file and optionally to the console asynchronously.
+/// Initialises the logger for output to a file and optionally to the console asynchronously.
 ///
 /// For further details, see the [module docs](index.html).
 pub fn init_to_file<P: AsRef<Path>>(
@@ -236,7 +237,7 @@ pub fn init_to_file<P: AsRef<Path>>(
     result
 }
 
-/// Initialises the `env_logger` for output to a server and optionally to the console
+/// Initialises the logger for output to a server and optionally to the console
 /// asynchronously.
 ///
 /// For further details, see the [module docs](index.html).
@@ -291,7 +292,7 @@ pub fn init_to_server<A: ToSocketAddrs>(
     })
 }
 
-/// Initialises the `env_logger` for output to a web socket and optionally to the console
+/// Initialises the logger for output to a web socket and optionally to the console
 /// asynchronously. The log which goes to the web-socket will be both verbose and in JSON as
 /// filters should be present in web-servers to manipulate the output/view.
 ///
@@ -367,8 +368,8 @@ impl Display for ParseLoggerError {
     }
 }
 
-impl From<()> for ParseLoggerError {
-    fn from(_: ()) -> Self {
+impl From<ParseLevelError> for ParseLoggerError {
+    fn from(_: ParseLevelError) -> Self {
         ParseLoggerError
     }
 }
@@ -382,8 +383,6 @@ fn parse_loggers_from_env() -> Result<(LogLevelFilter, Vec<Logger>), ParseLogger
 }
 
 fn parse_loggers(input: &str) -> Result<(LogLevelFilter, Vec<Logger>), ParseLoggerError> {
-    use std::collections::VecDeque;
-
     let mut loggers = Vec::new();
     let mut grouped_modules = VecDeque::new();
     let mut default_level = DEFAULT_LOG_LEVEL_FILTER;
@@ -427,7 +426,7 @@ fn init_once_guard<F: FnOnce() -> Result<(), String>>(init_fn: F) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::parse_loggers;
-    use logger::LogLevelFilter;
+    use logger::LevelFilter as LogLevelFilter;
 
     #[test]
     fn test_parse_loggers() {

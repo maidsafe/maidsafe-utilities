@@ -16,7 +16,7 @@ use log4rs::encode::pattern::PatternEncoder;
 use log4rs::encode::writer::simple::SimpleWriter;
 use log4rs::encode::Encode;
 use log4rs::file::{Deserialize, Deserializers};
-use logger::LogRecord;
+use logger::{Level, Record};
 use regex::Regex;
 use serde_value::Value;
 use std::borrow::Borrow;
@@ -475,7 +475,8 @@ impl Display for ConfigError {
 }
 
 enum AsyncEvent {
-    Log(Vec<u8>),
+    Log(Vec<u8>, Level),
+    Flush,
     Terminate,
 }
 
@@ -495,7 +496,7 @@ impl AsyncAppender {
 
             for event in rx.iter() {
                 match event {
-                    AsyncEvent::Log(mut msg) => {
+                    AsyncEvent::Log(mut msg, level) => {
                         if let Ok(mut str_msg) = String::from_utf8(msg) {
                             let str_msg_cloned = str_msg.clone();
                             if let Some(file_name_capture) = re.captures(&str_msg_cloned) {
@@ -505,8 +506,11 @@ impl AsyncAppender {
                             }
 
                             msg = str_msg.into_bytes();
-                            let _ = writer.sync_write(&msg);
+                            let _ = writer.sync_write(&msg, level);
                         }
+                    }
+                    AsyncEvent::Flush => {
+                        let _ = writer.flush();
                     }
                     AsyncEvent::Terminate => break,
                 }
@@ -522,11 +526,16 @@ impl AsyncAppender {
 }
 
 impl Append for AsyncAppender {
-    fn append(&self, record: &LogRecord) -> Result<(), Box<Error + Sync + Send>> {
+    fn append(&self, record: &Record) -> Result<(), Box<Error + Sync + Send>> {
         let mut msg = Vec::new();
         self.encoder.encode(&mut SimpleWriter(&mut msg), record)?;
-        unwrap!(self.tx.lock()).send(AsyncEvent::Log(msg))?;
+        unwrap!(self.tx.lock()).send(AsyncEvent::Log(msg, record.level()))?;
         Ok(())
+    }
+
+    fn flush(&self) {
+        let _ = unwrap!(self.tx.lock()).send(AsyncEvent::Flush);
+        ()
     }
 }
 
@@ -537,33 +546,49 @@ impl Drop for AsyncAppender {
 }
 
 trait SyncWrite {
-    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()>;
+    fn sync_write(&mut self, buf: &[u8], level: Level) -> io::Result<()>;
+    fn flush(&mut self) -> io::Result<()>;
 }
 
 impl SyncWrite for Stdout {
-    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
+    fn sync_write(&mut self, buf: &[u8], _level: Level) -> io::Result<()> {
         let mut out = self.lock();
-        out.write_all(buf)?;
+        out.write_all(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        let mut out = self.lock();
         out.flush()
     }
 }
 
 impl SyncWrite for File {
-    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
-        self.write_all(buf)?;
-        self.flush()
+    fn sync_write(&mut self, buf: &[u8], _level: Level) -> io::Result<()> {
+        self.write_all(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Write::flush(self)
     }
 }
 
 impl SyncWrite for TcpStream {
-    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
+    fn sync_write(&mut self, buf: &[u8], _level: Level) -> io::Result<()> {
         self.write_all(buf)?;
+        SyncWrite::flush(self)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
         self.write_all(&MSG_TERMINATOR[..])
     }
 }
 
 impl SyncWrite for WebSocket {
-    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
+    fn sync_write(&mut self, buf: &[u8], _level: Level) -> io::Result<()> {
         self.write_all(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
