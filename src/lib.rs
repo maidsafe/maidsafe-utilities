@@ -66,6 +66,8 @@ extern crate bincode;
 extern crate config_file_handler;
 #[macro_use]
 extern crate lazy_static;
+#[cfg(target_os = "android")]
+extern crate android_log_sys;
 #[cfg_attr(test, macro_use)]
 extern crate log as logger;
 extern crate log4rs;
