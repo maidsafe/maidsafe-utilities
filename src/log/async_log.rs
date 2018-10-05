@@ -12,6 +12,7 @@
 use config_file_handler::FileHandler;
 use log::web_socket::WebSocket;
 use log4rs::append::Append;
+use log4rs::encode::json::JsonEncoder;
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::encode::writer::simple::SimpleWriter;
 use log4rs::encode::Encode;
@@ -222,9 +223,7 @@ impl Deserialize for AsyncConsoleAppenderCreator {
 
         let pattern = parse_pattern(&mut map, false)?;
         Ok(Box::new(
-            AsyncConsoleAppender::builder()
-                .encoder(Box::new(pattern))
-                .build(),
+            AsyncConsoleAppender::builder().encoder(pattern).build(),
         ))
     }
 }
@@ -323,7 +322,7 @@ impl Deserialize for AsyncFileAppenderCreator {
 
         let pattern = parse_pattern(&mut map, false)?;
         let appender = AsyncFileAppender::builder(op_path)
-            .encoder(Box::new(pattern))
+            .encoder(pattern)
             .append(append)
             .timestamp(timestamp)
             .build()?;
@@ -374,7 +373,7 @@ impl Deserialize for AsyncServerAppenderCreator {
 
         Ok(Box::new(
             AsyncServerAppender::builder(server_addr)
-                .encoder(Box::new(pattern))
+                .encoder(pattern)
                 .no_delay(no_delay)
                 .build()?,
         ))
@@ -420,7 +419,7 @@ impl Deserialize for AsyncWebSockAppenderCreator {
         let pattern = parse_pattern(&mut map, true)?;
         Ok(Box::new(
             AsyncWebSockAppender::builder(server_url)
-                .encoder(Box::new(pattern))
+                .encoder(pattern)
                 .session_id(session_id)
                 .build()?,
         ))
@@ -430,33 +429,20 @@ impl Deserialize for AsyncWebSockAppenderCreator {
 fn parse_pattern(
     map: &mut BTreeMap<Value, Value>,
     is_websocket: bool,
-) -> Result<PatternEncoder, Box<Error + Sync + Send>> {
-    use rand;
-
+) -> Result<Box<Encode>, Box<Error + Sync + Send>> {
     match map.remove(&Value::String("pattern".to_owned())) {
-        Some(Value::String(pattern)) => Ok(PatternEncoder::new(&pattern)),
+        Some(Value::String(pattern)) => Ok(Box::new(PatternEncoder::new(&pattern))),
         Some(_) => Err(Box::new(ConfigError(
             "`pattern` must be a string".to_owned(),
         ))),
         None => {
             if is_websocket {
-                Ok(make_json_pattern(rand::random()))
+                Ok(Box::new(JsonEncoder::new()))
             } else {
-                Ok(PatternEncoder::default())
+                Ok(Box::new(PatternEncoder::default()))
             }
         }
     }
-}
-
-pub fn make_json_pattern(unique_id: u64) -> PatternEncoder {
-    let pattern = format!(
-        "{{{{\"id\":\"{}\",\"level\":\"{{l}}\",\"time\":\"{{d}}\",\"thread\":\
-         \"{{T}}\",\"module\":\"{{M}}\",\"file\":\"{{f}}\",\"line\":\"{{L}}\",\
-         \"msg\":\"{{m}}\"}}}}",
-        unique_id
-    );
-
-    PatternEncoder::new(&pattern)
 }
 
 #[derive(Debug)]
