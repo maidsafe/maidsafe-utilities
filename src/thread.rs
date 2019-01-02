@@ -91,7 +91,8 @@ mod tests {
             {
                 named("JoinerTestDaemon", move || {
                     thread::sleep(Duration::from_millis(SLEEP_DURATION_DAEMON));
-                }).detach();
+                })
+                .detach();
             }
             let diff = time_before.elapsed();
 

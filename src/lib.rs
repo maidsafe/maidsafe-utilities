@@ -33,8 +33,6 @@
     non_shorthand_field_patterns,
     overflowing_literals,
     plugin_as_library,
-    private_no_mangle_fns,
-    private_no_mangle_statics,
     stable_features,
     unconditional_recursion,
     unknown_lints,
@@ -59,7 +57,11 @@
     box_pointers,
     missing_copy_implementations,
     missing_debug_implementations,
-    variant_size_differences
+    variant_size_differences,
+    // TODO: we need this because of rust-typemap.
+    // Stop allowing this warning when this PR gets accepted upstream:
+    // https://github.com/reem/rust-typemap/pull/44
+    where_clauses_object_safety
 )]
 
 extern crate bincode;

@@ -430,27 +430,39 @@ mod tests {
     use logger::LogLevelFilter;
 
     #[test]
-    fn test_parse_loggers() {
+    fn test_parse_loggers_empty() {
         let (level, loggers) = unwrap!(parse_loggers(""));
         assert_eq!(level, LogLevelFilter::Warn);
         assert!(loggers.is_empty());
+    }
 
+    #[test]
+    fn test_parse_loggers_warn() {
         let (level, loggers) = unwrap!(parse_loggers("foo"));
         assert_eq!(level, LogLevelFilter::Warn);
         assert_eq!(loggers.len(), 1);
         assert_eq!(loggers[0].name(), "foo");
         assert_eq!(loggers[0].level(), LogLevelFilter::Warn);
+    }
 
+    #[test]
+    fn test_parse_loggers_info() {
         let (level, loggers) = unwrap!(parse_loggers("info"));
         assert_eq!(level, LogLevelFilter::Info);
         assert!(loggers.is_empty());
+    }
 
+    #[test]
+    fn test_parse_loggers_composed_warn() {
         let (level, loggers) = unwrap!(parse_loggers("foo::bar=warn"));
         assert_eq!(level, LogLevelFilter::Warn);
         assert_eq!(loggers.len(), 1);
         assert_eq!(loggers[0].name(), "foo::bar");
         assert_eq!(loggers[0].level(), LogLevelFilter::Warn);
+    }
 
+    #[test]
+    fn test_parse_loggers_all_levels() {
         let (level, loggers) = unwrap!(parse_loggers("foo::bar=error,baz=debug,qux"));
         assert_eq!(level, LogLevelFilter::Warn);
         assert_eq!(loggers.len(), 3);
@@ -463,7 +475,10 @@ mod tests {
 
         assert_eq!(loggers[2].name(), "qux");
         assert_eq!(loggers[2].level(), LogLevelFilter::Warn);
+    }
 
+    #[test]
+    fn test_parse_loggers_debug_and_info() {
         let (level, loggers) = unwrap!(parse_loggers("info,foo::bar,baz=debug,a0,a1, a2 , a3"));
         assert_eq!(level, LogLevelFilter::Info);
         assert_eq!(loggers.len(), 6);

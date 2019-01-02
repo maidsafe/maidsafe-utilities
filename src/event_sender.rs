@@ -238,11 +238,9 @@ mod tests {
         });
 
         assert!(nw_event_sender.send(NetworkEvent::Connected(TOKEN)).is_ok());
-        assert!(
-            ui_event_sender
-                .send(UiEvent::CreateDirectory(DIR_NAME.to_string()))
-                .is_ok()
-        );
+        assert!(ui_event_sender
+            .send(UiEvent::CreateDirectory(DIR_NAME.to_string()))
+            .is_ok());
         assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 
         ::std::thread::sleep(::std::time::Duration::from_millis(500));
