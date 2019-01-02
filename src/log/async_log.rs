@@ -9,15 +9,16 @@
 
 // TODO: consider contributing this code to the log4rs crate.
 
+use crate::log::web_socket::WebSocket;
+use crate::thread::{self, Joiner};
 use config_file_handler::FileHandler;
-use log::web_socket::WebSocket;
+use log::LogRecord;
 use log4rs::append::Append;
 use log4rs::encode::json::JsonEncoder;
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::encode::writer::simple::SimpleWriter;
 use log4rs::encode::Encode;
 use log4rs::file::{Deserialize, Deserializers};
-use logger::LogRecord;
 use regex::Regex;
 use serde_value::Value;
 use std::borrow::Borrow;
@@ -31,7 +32,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc::{self, Sender};
 use std::sync::Mutex;
-use thread::{self, Joiner};
 
 /// Message terminator for streaming to Log Servers. Servers must look out for this sequence which
 /// demarcates the end of a particular log message.

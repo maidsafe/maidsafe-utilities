@@ -58,10 +58,8 @@
 
 #[macro_use]
 extern crate log as logger;
-extern crate maidsafe_utilities;
 #[macro_use]
 extern crate unwrap;
-extern crate ws;
 
 use maidsafe_utilities::{log, thread};
 use std::sync::mpsc::{self, Sender};

@@ -58,29 +58,28 @@
     missing_copy_implementations,
     missing_debug_implementations,
     variant_size_differences,
+    // Note: allowing unused_imports because rust 2018 seems confused about the use
+    // of `#[cfg_attr(test, macro_use)]` instead of plain `#[macro_use]` to restrict
+    // the use of macros to test profiles.
+    // See `extern crate log as loggers`.
+    unused_imports,
     // TODO: we need this because of rust-typemap.
     // Stop allowing this warning when this PR gets accepted upstream:
     // https://github.com/reem/rust-typemap/pull/44
     where_clauses_object_safety
 )]
 
-extern crate bincode;
-extern crate config_file_handler;
 #[macro_use]
 extern crate lazy_static;
-#[cfg_attr(test, macro_use)]
+#[macro_use]
 extern crate log as logger;
-extern crate log4rs;
+use log4rs;
 #[macro_use]
 extern crate quick_error;
-extern crate rand;
-extern crate regex;
-extern crate serde;
-extern crate serde_value;
+use rand;
 #[macro_use]
 extern crate unwrap;
-extern crate url;
-extern crate ws;
+use ws;
 
 /// Utilities related to event-subsetting.
 pub mod event_sender;
@@ -93,4 +92,4 @@ pub mod serialisation;
 /// Utilities related to threading.
 pub mod thread;
 
-pub use seeded_rng::SeededRng;
+pub use crate::seeded_rng::SeededRng;

@@ -213,7 +213,7 @@ mod tests {
         let nw_event_sender =
             NetworkEventSender::new(network_event_tx, EventCategory::Network, category_tx);
 
-        let _joiner = ::thread::named("EventListenerThread", move || {
+        let _joiner = crate::thread::named("EventListenerThread", move || {
             for it in category_rx.iter() {
                 match it {
                     EventCategory::Network => {

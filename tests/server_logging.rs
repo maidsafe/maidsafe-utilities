@@ -58,7 +58,6 @@
 
 #[macro_use]
 extern crate log as logger;
-extern crate maidsafe_utilities;
 #[macro_use]
 extern crate unwrap;
 

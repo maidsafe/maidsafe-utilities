@@ -35,7 +35,6 @@ macro_rules! log_or_panic {
 #[cfg(test)]
 mod tests {
     struct Helper;
-
     impl Drop for Helper {
         fn drop(&mut self) {
             log_or_panic!("Dropping helper");

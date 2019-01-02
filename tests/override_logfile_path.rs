@@ -56,10 +56,9 @@
     variant_size_differences
 )]
 
-extern crate config_file_handler;
+use config_file_handler;
 #[macro_use]
 extern crate log as logger;
-extern crate maidsafe_utilities;
 #[macro_use]
 extern crate unwrap;
 

@@ -86,12 +86,12 @@ use self::async_log::{
 };
 
 use config_file_handler::FileHandler;
+use log::LogLevelFilter;
 use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::encode::json::JsonEncoder;
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::file::Deserializers;
-use logger::LogLevelFilter;
 use std::borrow::Borrow;
 use std::env;
 use std::fmt::{self, Display, Formatter};
@@ -427,7 +427,7 @@ fn init_once_guard<F: FnOnce() -> Result<(), String>>(init_fn: F) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::parse_loggers;
-    use logger::LogLevelFilter;
+    use log::LogLevelFilter;
 
     #[test]
     fn test_parse_loggers_empty() {
