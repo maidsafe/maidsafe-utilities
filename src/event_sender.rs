@@ -213,7 +213,7 @@ mod tests {
         let nw_event_sender =
             NetworkEventSender::new(network_event_tx, EventCategory::Network, category_tx);
 
-        let _joiner = ::thread::named("EventListenerThread", move || {
+        let _joiner = crate::thread::named("EventListenerThread", move || {
             for it in category_rx.iter() {
                 match it {
                     EventCategory::Network => {
@@ -238,11 +238,9 @@ mod tests {
         });
 
         assert!(nw_event_sender.send(NetworkEvent::Connected(TOKEN)).is_ok());
-        assert!(
-            ui_event_sender
-                .send(UiEvent::CreateDirectory(DIR_NAME.to_string()))
-                .is_ok()
-        );
+        assert!(ui_event_sender
+            .send(UiEvent::CreateDirectory(DIR_NAME.to_string()))
+            .is_ok());
         assert!(ui_event_sender.send(UiEvent::Terminate).is_ok());
 
         ::std::thread::sleep(::std::time::Duration::from_millis(500));

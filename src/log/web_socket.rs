@@ -7,6 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::thread::{self, Joiner};
 use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::convert::From;
@@ -14,7 +15,6 @@ use std::io;
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
-use thread::{self, Joiner};
 use url::Url;
 use ws::{self, CloseCode, Handler, Handshake, Message, Request};
 
