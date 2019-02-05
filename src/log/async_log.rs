@@ -255,12 +255,12 @@ impl Deserialize for AsyncFileAppenderCreator {
                 Some(_) => {
                     return Err(Box::new(ConfigError(
                         "`output_file_name` must be a string".to_owned(),
-                    )))
+                    )));
                 }
                 None => {
                     return Err(Box::new(ConfigError(
                         "`output_file_name` is required".to_owned(),
-                    )))
+                    )));
                 }
             }
         };
@@ -270,7 +270,7 @@ impl Deserialize for AsyncFileAppenderCreator {
             Some(_) => {
                 return Err(Box::new(ConfigError(
                     "`file_timestamp` must be a boolean".to_owned(),
-                )))
+                )));
             }
             None => false,
         };
@@ -312,7 +312,7 @@ impl Deserialize for AsyncFileAppenderCreator {
                     "Could not establish log file path: \
                      {:?}",
                     e
-                ))))
+                ))));
             }
         };
 
@@ -354,12 +354,12 @@ impl Deserialize for AsyncServerAppenderCreator {
             Some(_) => {
                 return Err(Box::new(ConfigError(
                     "`server_addr` must be a string".to_owned(),
-                )))
+                )));
             }
             None => {
                 return Err(Box::new(ConfigError(
                     "`server_addr` is required".to_owned(),
-                )))
+                )));
             }
         };
         let no_delay = match map.remove(&Value::String("no_delay".to_owned())) {
@@ -367,7 +367,7 @@ impl Deserialize for AsyncServerAppenderCreator {
             Some(_) => {
                 return Err(Box::new(ConfigError(
                     "`no_delay` must be a boolean".to_owned(),
-                )))
+                )));
             }
             None => true,
         };
@@ -403,7 +403,7 @@ impl Deserialize for AsyncWebSockAppenderCreator {
             Some(_) => {
                 return Err(Box::new(ConfigError(
                     "`server_url` must be a string".to_owned(),
-                )))
+                )));
             }
             None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
         };
