@@ -1,5 +1,8 @@
 # MaidSafe Utilities - Change Log
 
+## [0.18.0]
+- Update `url` dependency from `~1.5.1` to `~1.7.2`
+
 ## [0.17.0]
 - Change log tests to integration ones
 - Add log_or_panic macro
