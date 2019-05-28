@@ -19,10 +19,10 @@ log4rs = {version = "~0.7.0", features=["toml_format"]}
 quick-error = "~1.2.0"
 rand = "~0.3.15"
 regex = "~0.2.2"
-serde = "~1.0.25"
+serde = "~1.0.91"
 serde-value = "~0.5.1"
 unwrap = "~1.2.0"
-url = "~1.5.1"
+url = "~1.7.2"
 ws = "~0.7.3"
 
 [features]
