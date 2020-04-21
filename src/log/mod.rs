@@ -99,7 +99,7 @@ use std::net::ToSocketAddrs;
 use std::path::Path;
 use std::sync::{Once, ONCE_INIT};
 
-static INITIALISE_LOGGER: Once = ONCE_INIT;
+static INITIALISE_LOGGER: Once = Once::new();
 static CONFIG_FILE: &str = "log.toml";
 static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 
