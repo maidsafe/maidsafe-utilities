@@ -127,7 +127,7 @@ where
 fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> Result<(), String> {
     let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false)
         .ok()
-        .and_then(|fh| Some(fh.path().to_path_buf()));
+        .map(|fh| fh.path().to_path_buf());
 
     if let Some(config_path) = log_config_path {
         let mut deserializers = Deserializers::default();
