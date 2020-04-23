@@ -48,11 +48,11 @@ impl AsyncConsoleAppender {
 }
 
 pub struct AsyncConsoleAppenderBuilder {
-    encoder: Box<Encode>,
+    encoder: Box<dyn Encode>,
 }
 
 impl AsyncConsoleAppenderBuilder {
-    pub fn encoder(self, encoder: Box<Encode>) -> Self {
+    pub fn encoder(self, encoder: Box<dyn Encode>) -> Self {
         AsyncConsoleAppenderBuilder { encoder }
     }
 
@@ -76,13 +76,13 @@ impl AsyncFileAppender {
 
 pub struct AsyncFileAppenderBuilder {
     path: PathBuf,
-    encoder: Box<Encode>,
+    encoder: Box<dyn Encode>,
     append: bool,
     timestamp: bool,
 }
 
 impl AsyncFileAppenderBuilder {
-    pub fn encoder(self, encoder: Box<Encode>) -> Self {
+    pub fn encoder(self, encoder: Box<dyn Encode>) -> Self {
         AsyncFileAppenderBuilder {
             path: self.path,
             encoder,
@@ -142,12 +142,12 @@ impl AsyncServerAppender {
 
 pub struct AsyncServerAppenderBuilder<A> {
     addr: A,
-    encoder: Box<Encode>,
+    encoder: Box<dyn Encode>,
     no_delay: bool,
 }
 
 impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
-    pub fn encoder(self, encoder: Box<Encode>) -> Self {
+    pub fn encoder(self, encoder: Box<dyn Encode>) -> Self {
         AsyncServerAppenderBuilder {
             addr: self.addr,
             encoder,
@@ -185,11 +185,11 @@ impl AsyncWebSockAppender {
 pub struct AsyncWebSockAppenderBuilder<U> {
     url: U,
     session_id: Option<String>,
-    encoder: Box<Encode>,
+    encoder: Box<dyn Encode>,
 }
 
 impl<U: Borrow<str>> AsyncWebSockAppenderBuilder<U> {
-    pub fn encoder(mut self, encoder: Box<Encode>) -> Self {
+    pub fn encoder(mut self, encoder: Box<dyn Encode>) -> Self {
         self.encoder = encoder;
         self
     }
@@ -208,14 +208,14 @@ impl<U: Borrow<str>> AsyncWebSockAppenderBuilder<U> {
 pub struct AsyncConsoleAppenderCreator;
 
 impl Deserialize for AsyncConsoleAppenderCreator {
-    type Trait = Append;
+    type Trait = dyn Append;
     type Config = Value;
 
     fn deserialize(
         &self,
         config: Value,
         _deserializers: &Deserializers,
-    ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
+    ) -> Result<Box<dyn Append>, Box<dyn Error + Sync + Send>> {
         let mut map = match config {
             Value::Map(map) => map,
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
@@ -232,14 +232,14 @@ impl Deserialize for AsyncConsoleAppenderCreator {
 pub struct AsyncFileAppenderCreator(pub Option<String>);
 
 impl Deserialize for AsyncFileAppenderCreator {
-    type Trait = Append;
+    type Trait = dyn Append;
     type Config = Value;
 
     fn deserialize(
         &self,
         config: Value,
         _deserializers: &Deserializers,
-    ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
+    ) -> Result<Box<dyn Append>, Box<dyn Error + Sync + Send>> {
         use std::time::UNIX_EPOCH;
 
         let mut map = match config {
@@ -336,14 +336,14 @@ impl Deserialize for AsyncFileAppenderCreator {
 pub struct AsyncServerAppenderCreator;
 
 impl Deserialize for AsyncServerAppenderCreator {
-    type Trait = Append;
+    type Trait = dyn Append;
     type Config = Value;
 
     fn deserialize(
         &self,
         config: Value,
         _deserializers: &Deserializers,
-    ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
+    ) -> Result<Box<dyn Append>, Box<dyn Error + Sync + Send>> {
         let mut map = match config {
             Value::Map(map) => map,
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
@@ -385,14 +385,14 @@ impl Deserialize for AsyncServerAppenderCreator {
 pub struct AsyncWebSockAppenderCreator;
 
 impl Deserialize for AsyncWebSockAppenderCreator {
-    type Trait = Append;
+    type Trait = dyn Append;
     type Config = Value;
 
     fn deserialize(
         &self,
         config: Value,
         _deserializers: &Deserializers,
-    ) -> Result<Box<Append>, Box<Error + Sync + Send>> {
+    ) -> Result<Box<dyn Append>, Box<dyn Error + Sync + Send>> {
         let mut map = match config {
             Value::Map(map) => map,
             _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
@@ -431,7 +431,7 @@ impl Deserialize for AsyncWebSockAppenderCreator {
 fn parse_pattern(
     map: &mut BTreeMap<Value, Value>,
     is_websocket: bool,
-) -> Result<Box<Encode>, Box<Error + Sync + Send>> {
+) -> Result<Box<dyn Encode>, Box<dyn Error + Sync + Send>> {
     match map.remove(&Value::String("pattern".to_owned())) {
         Some(Value::String(pattern)) => Ok(Box::new(PatternEncoder::new(&pattern))),
         Some(_) => Err(Box::new(ConfigError(
@@ -469,13 +469,13 @@ enum AsyncEvent {
 
 #[derive(Debug)]
 pub struct AsyncAppender {
-    encoder: Box<Encode>,
+    encoder: Box<dyn Encode>,
     tx: Mutex<Sender<AsyncEvent>>,
     _raii_joiner: Joiner,
 }
 
 impl AsyncAppender {
-    fn new<W: 'static + SyncWrite + Send>(mut writer: W, encoder: Box<Encode>) -> Self {
+    fn new<W: 'static + SyncWrite + Send>(mut writer: W, encoder: Box<dyn Encode>) -> Self {
         let (tx, rx) = mpsc::channel::<AsyncEvent>();
 
         let joiner = thread::named("AsyncLog", move || {
@@ -510,7 +510,7 @@ impl AsyncAppender {
 }
 
 impl Append for AsyncAppender {
-    fn append(&self, record: &LogRecord) -> Result<(), Box<Error + Sync + Send>> {
+    fn append(&self, record: &LogRecord) -> Result<(), Box<dyn Error + Sync + Send>> {
         let mut msg = Vec::new();
         self.encoder.encode(&mut SimpleWriter(&mut msg), record)?;
         unwrap!(self.tx.lock()).send(AsyncEvent::Log(msg))?;

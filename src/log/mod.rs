@@ -97,9 +97,9 @@ use std::env;
 use std::fmt::{self, Display, Formatter};
 use std::net::ToSocketAddrs;
 use std::path::Path;
-use std::sync::{Once, ONCE_INIT};
+use std::sync::Once;
 
-static INITIALISE_LOGGER: Once = ONCE_INIT;
+static INITIALISE_LOGGER: Once = Once::new();
 static CONFIG_FILE: &str = "log.toml";
 static DEFAULT_LOG_LEVEL_FILTER: LogLevelFilter = LogLevelFilter::Warn;
 
@@ -127,7 +127,7 @@ where
 fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> Result<(), String> {
     let log_config_path = FileHandler::<()>::open(CONFIG_FILE, false)
         .ok()
-        .and_then(|fh| Some(fh.path().to_path_buf()));
+        .map(|fh| fh.path().to_path_buf());
 
     if let Some(config_path) = log_config_path {
         let mut deserializers = Deserializers::default();
