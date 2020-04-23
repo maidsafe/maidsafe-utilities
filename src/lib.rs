@@ -65,7 +65,8 @@
     // TODO: we need this because of rust-typemap.
     // Stop allowing this warning when this PR gets accepted upstream:
     // https://github.com/reem/rust-typemap/pull/44
-    where_clauses_object_safety
+    where_clauses_object_safety,
+    clippy::needless_doctest_main
 )]
 
 #[macro_use]
