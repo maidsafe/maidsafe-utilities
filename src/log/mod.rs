@@ -87,7 +87,6 @@ use self::async_log::{
 
 use config_file_handler::FileHandler;
 use log::LogLevelFilter;
-use log4rs;
 use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::encode::json::JsonEncoder;
 use log4rs::encode::pattern::PatternEncoder;
