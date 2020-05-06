@@ -7,7 +7,6 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use std;
 use std::fmt;
 use std::thread::JoinHandle;
 

@@ -15,7 +15,7 @@
 // For explanation of lint checks, run `rustc -W help` or see
 // https://github.com/maidsafe/QA/blob/master/Documentation/Rust%20Lint%20Checks.md
 #![forbid(
-    exceeding_bitshifts,
+    arithmetic_overflow,
     mutable_transmutes,
     no_mangle_const_items,
     unknown_crate_types,
