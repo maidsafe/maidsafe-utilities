@@ -9,7 +9,6 @@
 
 // TODO: consider contributing this code to the log4rs crate.
 
-use crate::log::web_socket::WebSocket;
 use crate::thread::{self, Joiner};
 use config_file_handler::FileHandler;
 use log::LogRecord;
@@ -167,41 +166,6 @@ impl<A: ToSocketAddrs> AsyncServerAppenderBuilder<A> {
         let stream = TcpStream::connect(self.addr)?;
         stream.set_nodelay(self.no_delay)?;
         Ok(AsyncAppender::new(stream, self.encoder))
-    }
-}
-
-pub struct AsyncWebSockAppender;
-
-impl AsyncWebSockAppender {
-    pub fn builder<U: Borrow<str>>(server_url: U) -> AsyncWebSockAppenderBuilder<U> {
-        AsyncWebSockAppenderBuilder {
-            url: server_url,
-            session_id: None,
-            encoder: Box::new(PatternEncoder::default()),
-        }
-    }
-}
-
-pub struct AsyncWebSockAppenderBuilder<U> {
-    url: U,
-    session_id: Option<String>,
-    encoder: Box<dyn Encode>,
-}
-
-impl<U: Borrow<str>> AsyncWebSockAppenderBuilder<U> {
-    pub fn encoder(mut self, encoder: Box<dyn Encode>) -> Self {
-        self.encoder = encoder;
-        self
-    }
-
-    pub fn session_id(mut self, session_id: Option<String>) -> Self {
-        self.session_id = session_id;
-        self
-    }
-
-    pub fn build(self) -> io::Result<AsyncAppender> {
-        let ws = WebSocket::new(self.url, self.session_id);
-        Ok(AsyncAppender::new(ws, self.encoder))
     }
 }
 
@@ -382,52 +346,6 @@ impl Deserialize for AsyncServerAppenderCreator {
     }
 }
 
-pub struct AsyncWebSockAppenderCreator;
-
-impl Deserialize for AsyncWebSockAppenderCreator {
-    type Trait = dyn Append;
-    type Config = Value;
-
-    fn deserialize(
-        &self,
-        config: Value,
-        _deserializers: &Deserializers,
-    ) -> Result<Box<dyn Append>, Box<dyn Error + Sync + Send>> {
-        let mut map = match config {
-            Value::Map(map) => map,
-            _ => return Err(Box::new(ConfigError("config must be a map".to_owned()))),
-        };
-
-        let server_url = match map.remove(&Value::String("server_url".to_owned())) {
-            Some(Value::String(url)) => url,
-            Some(_) => {
-                return Err(Box::new(ConfigError(
-                    "`server_url` must be a string".to_owned(),
-                )));
-            }
-            None => return Err(Box::new(ConfigError("`server_url` is required".to_owned()))),
-        };
-
-        let session_id = match map.remove(&Value::String("session_id".to_owned())) {
-            Some(Value::String(id)) => Some(id),
-            Some(_) => {
-                return Err(Box::new(ConfigError(
-                    "`session_id` must be a string".to_owned(),
-                )));
-            }
-            None => None,
-        };
-
-        let pattern = parse_pattern(&mut map, true)?;
-        Ok(Box::new(
-            AsyncWebSockAppender::builder(server_url)
-                .encoder(pattern)
-                .session_id(session_id)
-                .build()?,
-        ))
-    }
-}
-
 fn parse_pattern(
     map: &mut BTreeMap<Value, Value>,
     is_websocket: bool,
@@ -547,11 +465,5 @@ impl SyncWrite for TcpStream {
     fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
         self.write_all(buf)?;
         self.write_all(&MSG_TERMINATOR[..])
-    }
-}
-
-impl SyncWrite for WebSocket {
-    fn sync_write(&mut self, buf: &[u8]) -> io::Result<()> {
-        self.write_all(buf)
     }
 }

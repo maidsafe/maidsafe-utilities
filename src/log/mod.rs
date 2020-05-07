@@ -74,15 +74,12 @@
 //! severe ones.
 
 pub use self::async_log::MSG_TERMINATOR;
-pub use self::web_socket::validate_request as validate_web_socket_request;
 
 mod async_log;
-mod web_socket;
 
 use self::async_log::{
     AsyncConsoleAppender, AsyncConsoleAppenderCreator, AsyncFileAppender, AsyncFileAppenderCreator,
-    AsyncServerAppender, AsyncServerAppenderCreator, AsyncWebSockAppender,
-    AsyncWebSockAppenderCreator,
+    AsyncServerAppender, AsyncServerAppenderCreator,
 };
 
 use config_file_handler::FileHandler;
@@ -136,7 +133,6 @@ fn init_impl(show_thread_name: bool, op_file_name_override: Option<String>) -> R
             AsyncFileAppenderCreator(op_file_name_override),
         );
         deserializers.insert("async_server", AsyncServerAppenderCreator);
-        deserializers.insert("async_web_socket", AsyncWebSockAppenderCreator);
 
         log4rs::init_file(config_path, deserializers).map_err(|e| format!("{}", e))
     } else {
@@ -284,63 +280,6 @@ pub fn init_to_server<A: ToSocketAddrs>(
 
         let config = config.build(root).map_err(|e| format!("{}", e))?;
 
-        log4rs::init_config(config)
-            .map_err(|e| format!("{}", e))
-            .map(|_| ())
-    })
-}
-
-/// Initialises the `env_logger` for output to a web socket and optionally to the console
-/// asynchronously. The log which goes to the web-socket will be both verbose and in JSON as
-/// filters should be present in web-servers to manipulate the output/view.
-///
-/// For further details, see the [module docs](index.html).
-pub fn init_to_web_socket<U: Borrow<str>>(
-    server_url: U,
-    session_id: Option<String>,
-    show_thread_name_in_console: bool,
-    log_to_console: bool,
-) -> Result<(), String> {
-    init_once_guard(|| {
-        let (default_level, loggers) = match parse_loggers_from_env() {
-            Ok((level, loggers)) => (level, loggers),
-            Err(error) => {
-                return Err(format!("{}", error));
-            }
-        };
-
-        let mut root = Root::builder().appender("server".to_owned());
-
-        if log_to_console {
-            root = root.appender("console".to_owned());
-        }
-
-        let root = root.build(default_level);
-
-        let mut config = Config::builder().loggers(loggers);
-
-        let server_appender = AsyncWebSockAppender::builder(server_url)
-            .encoder(Box::new(JsonEncoder::new()))
-            .session_id(session_id)
-            .build()
-            .map_err(|e| format!("{}", e))?;
-
-        let server_appender =
-            Appender::builder().build("server".to_owned(), Box::new(server_appender));
-
-        config = config.appender(server_appender);
-
-        if log_to_console {
-            let console_appender = AsyncConsoleAppender::builder()
-                .encoder(Box::new(make_pattern(show_thread_name_in_console)))
-                .build();
-            let console_appender =
-                Appender::builder().build("console".to_owned(), Box::new(console_appender));
-
-            config = config.appender(console_appender);
-        }
-
-        let config = config.build(root).map_err(|e| format!("{}", e))?;
         log4rs::init_config(config)
             .map_err(|e| format!("{}", e))
             .map(|_| ())
