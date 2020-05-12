@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set -x -e
-
-cargo test "$@" --release
-cargo test "$@" --release --features=testing
