@@ -20,17 +20,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - name: Install Rust and required components
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
           components: rustfmt, clippy
       # Check if the code is formatted correctly.
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
       # Cache.
       - name: Cache cargo registry
@@ -50,8 +49,10 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       # Run Clippy.
-      - shell: bash
-        run: ./scripts/clippy  
+      - name: Run clippy checks
+        run: |
+          cargo clippy --all-targets
+          cargo clippy --all-targets --features=testing
 
   test:
     name: Test
@@ -61,16 +62,16 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
 
       # Generate Cargo.lock, needed for the cache.
-      - uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
+      - name: Generate lockfile
+        run: cargo generate-lockfile
 
       # Cache.
       - name: Cache cargo registry
@@ -90,5 +91,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       # Run tests.
-      - shell: bash
-        run: ./scripts/tests
+      - name: Run tests
+        run: |
+          cargo test "$@" --release
+          cargo test "$@" --release --features=testing
