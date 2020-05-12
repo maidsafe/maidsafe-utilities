@@ -1,5 +1,10 @@
 # MaidSafe Utilities - Change Log
 
+## [0.19.0]
+- Update to Rust 1.43 stable
+- Migrate CI/CD to GitHub actions
+- Remove logging to a websocket
+
 ## [0.18.0]
 - Update `url` dependency from `~1.5.1` to `~1.7.2`
 
