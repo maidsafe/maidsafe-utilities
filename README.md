@@ -1,4 +1,4 @@
-# maidsafe_utilities
+# maidsafe-utilities
 
 |Crate|Documentation|Linux/macOS|Windows|Issues|
 |:---:|:-----------:|:--------:|:-----:|:----:|
