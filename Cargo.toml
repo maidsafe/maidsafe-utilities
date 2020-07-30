@@ -22,7 +22,6 @@ regex = "~0.2.2"
 serde = "1.0.91"
 serde-value = "~0.5.1"
 unwrap = "1.2.0"
-url = "1.7.2"
 
 [features]
 testing = []
